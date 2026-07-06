@@ -11,6 +11,9 @@ const copy = {
   write: "\uae30\ub85d\ud558\uae30",
   complete: "\uc644\ub8cc",
   selectedPlace: "\uc120\ud0dd\ud55c \uc7a5\uc18c",
+  todaySection: "\uc624\ub298\uc758 \uc2dc\uac04",
+  experienceSection: "\uc7a5\uc18c\uc5d0\uc11c \ub290\ub080 \uac83",
+  afterSection: "\ub098\uc911\uc758 \ub098\uc5d0\uac8c",
   title: "\uc624\ub298\uc758 \uc81c\ubaa9",
   titlePlaceholder: "\uc624\ub298\uc744 \ud55c \uc904\ub85c \ub0a8\uaca8\ubcf4\uc138\uc694",
   companion: "\ub204\uad6c\uc640 \ub2e4\ub140\uc654\ub098\uc694?",
@@ -48,8 +51,32 @@ const moods = [
   { key: "stressed", label: "\uc2a4\ud2b8\ub808\uc2a4" },
 ] as const;
 
-const keywordOptions = ["\ube44 \uc624\ub294 \ub0a0", "\ub9d1\uc74c", "\ud63c\uc790 \ub0a0", "\uc800\ub141", "\uace0\uc591\uc774", "\ub370\uc774\ud2b8", "\uce5c\uad6c", "\uc57c\uac04 \uc0b0\ucc45", "\uacf5\uc5f0", "\uc774\ub3d9", "\ud734\uc2dd", "\uac00\uc871"];
-const atmosphereOptions = ["\uc544\ub291", "\uc870\uc6a9\ud55c", "\uc0ac\uc9c4\ub9db\uc9d1", "\ubd84\uc704\uae30 \uc88b\uc74c", "\uc74c\uc545 \uc88b\uc74c", "\uc57c\uacbd", "\ub300\ud654\ud558\uae30 \uc88b\uc74c", "\uac10\uc131", "\ud65c\uae30\ucc2c"];
+const keywordOptions = [
+  "\ube44 \uc624\ub294 \ub0a0",
+  "\ub9d1\uc74c",
+  "\ud63c\uc790 \ub0a0",
+  "\uc800\ub141",
+  "\uace0\uc591\uc774",
+  "\ub370\uc774\ud2b8",
+  "\uce5c\uad6c",
+  "\uc57c\uac04 \uc0b0\ucc45",
+  "\uacf5\uc5f0",
+  "\uc774\ub3d9",
+  "\ud734\uc2dd",
+  "\uac00\uc871",
+];
+
+const atmosphereOptions = [
+  "\uc544\ub291",
+  "\uc870\uc6a9\ud55c",
+  "\uc0ac\uc9c4\ub9db\uc9d1",
+  "\ubd84\uc704\uae30 \uc88b\uc74c",
+  "\uc74c\uc545 \uc88b\uc74c",
+  "\uc57c\uacbd",
+  "\ub300\ud654\ud558\uae30 \uc88b\uc74c",
+  "\uac10\uc131",
+  "\ud65c\uae30\ucc2c",
+];
 
 function toggleLimited(list: string[], value: string, max: number) {
   if (list.includes(value)) return list.filter((item) => item !== value);
@@ -124,9 +151,23 @@ export function ReviewWriteForm() {
           </aside>
 
           <div>
-            <section className="mt-7 md:mt-8">
-              <label className="text-sm font-extrabold" htmlFor="diary-title">{copy.title}</label>
-              <input id="diary-title" className="mt-3 h-12 w-full rounded-xl border border-[var(--border)] px-4 text-sm outline-none focus:border-[var(--brand)]" maxLength={40} onChange={(event) => setTitle(event.target.value)} placeholder={copy.titlePlaceholder} value={title} />
+            <div className="mt-7 md:mt-8">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-zinc-400">Today</p>
+              <h2 className="mt-1 text-xl font-extrabold">{copy.todaySection}</h2>
+            </div>
+
+            <section className="mt-5">
+              <label className="text-sm font-extrabold" htmlFor="diary-title">
+                {copy.title}
+              </label>
+              <input
+                className="mt-3 h-12 w-full rounded-xl border border-[var(--border)] px-4 text-sm outline-none focus:border-[var(--brand)]"
+                id="diary-title"
+                maxLength={40}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={copy.titlePlaceholder}
+                value={title}
+              />
             </section>
 
             <section className="mt-7">
@@ -166,15 +207,24 @@ export function ReviewWriteForm() {
               </div>
             </section>
 
-            <section className="mt-8 grid gap-5 md:grid-cols-2">
+            <div className="mt-10 border-t border-[var(--border)] pt-8">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-zinc-400">Experience</p>
+              <h2 className="mt-1 text-xl font-extrabold">{copy.experienceSection}</h2>
+            </div>
+
+            <section className="mt-5 grid gap-5 md:grid-cols-2">
               <div>
-                <label className="text-sm font-extrabold" htmlFor="memory">{copy.memory}</label>
-                <textarea id="memory" className="mt-3 h-28 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" maxLength={100} onChange={(event) => setMemory(event.target.value)} placeholder={copy.memoryPlaceholder} value={memory} />
+                <label className="text-sm font-extrabold" htmlFor="memory">
+                  {copy.memory}
+                </label>
+                <textarea className="mt-3 h-28 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" id="memory" maxLength={100} onChange={(event) => setMemory(event.target.value)} placeholder={copy.memoryPlaceholder} value={memory} />
                 <div className="text-right text-xs font-semibold text-zinc-300">{memory.length} / 100</div>
               </div>
               <div>
-                <label className="text-sm font-extrabold" htmlFor="review">{copy.review}</label>
-                <textarea id="review" className="mt-3 h-28 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" maxLength={300} onChange={(event) => setReview(event.target.value)} placeholder={copy.reviewPlaceholder} value={review} />
+                <label className="text-sm font-extrabold" htmlFor="review">
+                  {copy.review}
+                </label>
+                <textarea className="mt-3 h-28 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" id="review" maxLength={300} onChange={(event) => setReview(event.target.value)} placeholder={copy.reviewPlaceholder} value={review} />
                 <div className="text-right text-xs font-semibold text-zinc-300">{review.length} / 300</div>
               </div>
             </section>
@@ -190,10 +240,17 @@ export function ReviewWriteForm() {
               </div>
             </section>
 
-            <section className="mt-8">
-              <label className="text-sm font-extrabold" htmlFor="expense">{copy.expense}</label>
+            <div className="mt-10 border-t border-[var(--border)] pt-8">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-zinc-400">After</p>
+              <h2 className="mt-1 text-xl font-extrabold">{copy.afterSection}</h2>
+            </div>
+
+            <section className="mt-5">
+              <label className="text-sm font-extrabold" htmlFor="expense">
+                {copy.expense}
+              </label>
               <div className="mt-3 flex gap-2">
-                <input id="expense" className="h-12 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-4 text-sm outline-none disabled:bg-zinc-100 disabled:text-zinc-400" disabled={expenseUnknown} onChange={(event) => handleExpense(event.target.value)} placeholder="18,500" value={expense} />
+                <input className="h-12 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-4 text-sm outline-none disabled:bg-zinc-100 disabled:text-zinc-400" disabled={expenseUnknown} id="expense" onChange={(event) => handleExpense(event.target.value)} placeholder="18,500" value={expense} />
                 <label className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-zinc-100 px-3 text-xs font-bold text-zinc-600">
                   <input checked={expenseUnknown} onChange={(event) => setExpenseUnknown(event.target.checked)} type="checkbox" />
                   {copy.unknownExpense}
@@ -230,8 +287,10 @@ export function ReviewWriteForm() {
             </section>
 
             <section className="mt-8">
-              <label className="text-sm font-extrabold" htmlFor="future-memo">{copy.futureMemo}</label>
-              <textarea id="future-memo" className="mt-3 h-24 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" maxLength={80} onChange={(event) => setFutureMemo(event.target.value)} placeholder={copy.futurePlaceholder} value={futureMemo} />
+              <label className="text-sm font-extrabold" htmlFor="future-memo">
+                {copy.futureMemo}
+              </label>
+              <textarea className="mt-3 h-24 w-full resize-none rounded-xl border border-[var(--border)] p-4 text-sm outline-none placeholder:text-zinc-300 focus:border-[var(--brand)]" id="future-memo" maxLength={80} onChange={(event) => setFutureMemo(event.target.value)} placeholder={copy.futurePlaceholder} value={futureMemo} />
               <div className="text-right text-xs font-semibold text-zinc-300">{futureMemo.length} / 80</div>
             </section>
 
