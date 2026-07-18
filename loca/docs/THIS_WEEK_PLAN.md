@@ -9,7 +9,7 @@
 - ESLint는 적용되어 있고, Prettier는 아직 없습니다.
 - `.env.local`은 사용 중이고, 공유용 `.env.example`을 추가했습니다.
 - README는 LOCA와 현재 Vite 구조 기준으로 정리했습니다.
-- 가장 큰 정리 대상은 Next 마이그레이션 잔여 파일과 `next/*` 호환 import입니다.
+- 라우팅은 React Router 기준으로 정리했습니다.
 
 ## 2. Git 브랜치 전략 초안
 
@@ -88,7 +88,7 @@ type(scope): 변경 내용
 
 ## 8. 팀이 직접 결정해야 할 항목
 
-- Vite 전환을 최종 유지할지 여부
+- Vite + React Router 구조 유지 여부
 - Bottom Navigation 최종 메뉴
 - Saved와 Private Place의 최종 구분
 - 기록 공개 범위
@@ -140,11 +140,11 @@ type(scope): 변경 내용
 - 테스트 방법: 팀원이 사용자 흐름을 말로 따라갈 수 있는지 확인
 - 위험도: 낮음
 
-### PR 4. refactor/vite-migration-cleanup
+### PR 4. refactor/router-cleanup
 
-- 목적: Vite 전환 후 남은 Next 호환 코드 정리
-- 예상 수정 파일: `src/pages/*`, `src/components/*`, `vite.config.js`, Next 잔여 파일
-- 작업 내용: `next/link`, `next/navigation`, `next/image` 호환 import를 React Router 기준으로 교체
+- 목적: React Router 기준 라우팅 구조 안정화
+- 예상 수정 파일: `src/pages/*`, `src/components/*`, `vite.config.js`
+- 작업 내용: 화면 이동, URL 파라미터, 쿼리 파라미터 사용 방식 점검
 - 선행 결정: Vite 구조 유지 확정
 - 완료 조건: 모든 기존 Route가 유지되고 build 성공
 - 테스트 방법: `npm run lint`, `npm run build`, 주요 Route 접속 확인

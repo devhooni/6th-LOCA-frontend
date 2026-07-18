@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { createPlace } from "@/src/services/placeService";
 
@@ -24,7 +22,7 @@ const methods = [
 ];
 
 export function PlaceNewClient() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [method, setMethod] = useState("manual");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("culture");
@@ -67,7 +65,7 @@ export function PlaceNewClient() {
       source: "user",
       registrationMethod: method,
     });
-    router.push(`/place/${created.id}`);
+    navigate(`/place/${created.id}`);
   };
 
   return (

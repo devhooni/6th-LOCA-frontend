@@ -1,21 +1,11 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { getPlaceById } from "@/src/services/placeService";
-
-const copy = {
-  back: "뒤로가기",
-  share: "공유",
-  bookmark: "북마크",
-  location: "위치",
-  hours: "영업시간",
-  record: "기록하기",
-};
+import { mockReviews } from "@/src/mocks/reviews";
 
 export default function PlaceDetailPage() {
   const { id } = useParams();
@@ -31,104 +21,92 @@ export default function PlaceDetailPage() {
 
   if (loading) {
     return (
-      <AppShell flush>
-        <div className="p-5 text-zinc-500">불러오는 중...</div>
+      <AppShell>
+        <div className="h-96 animate-pulse rounded-2xl bg-zinc-100" />
       </AppShell>
     );
   }
 
   if (!place) {
-    notFound();
-    return null;
+    return (
+      <AppShell>
+        <div className="wire-panel p-8 text-sm font-semibold text-zinc-500">
+          장소를 찾을 수 없어요.
+        </div>
+      </AppShell>
+    );
   }
 
   return (
-    <AppShell flush>
-      <div className="md:grid md:min-h-[calc(100dvh-56px)] md:grid-cols-[1fr_430px]">
-        <section className="relative h-80 overflow-hidden md:h-auto">
-          <img
-            alt=""
-            className="h-full w-full object-cover"
-            src={place.imageUrl}
-          />
+    <AppShell>
+      <Link className="inline-flex h-10 items-center text-sm font-bold text-zinc-500 hover:text-black" to="/explore">
+        ← Explore로 돌아가기
+      </Link>
 
-          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/10" />
-          <div className="absolute inset-x-0 top-4 flex items-center justify-between px-4 text-white md:px-8 md:top-8">
-            <Link
-              aria-label={copy.back}
-              className="rounded-full bg-black/20 p-2 backdrop-blur"
-              href="/explore"
-            >
-              <Icon name="chevron" />
-            </Link>
-            <div className="flex gap-2">
-              <button
-                aria-label={copy.share}
-                className="rounded-full bg-black/20 p-2 backdrop-blur"
-                type="button"
-              >
-                <Icon name="share" />
-              </button>
-              <button
-                aria-label={copy.bookmark}
-                className="rounded-full bg-black/20 p-2 backdrop-blur"
-                type="button"
-              >
-                <Icon name="bookmark" />
-              </button>
+      <section className="mt-6 grid gap-8 lg:grid-cols-[1fr_420px]">
+        <img alt="" className="h-[520px] w-full rounded-2xl object-cover" src={place.imageUrl} />
+
+        <aside className="flex flex-col">
+          <div>
+            <h1 className="text-4xl font-black leading-tight">{place.name}</h1>
+            <p className="mt-3 text-base font-semibold text-zinc-500">
+              {place.categoryLabel} · {place.address}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <TagChip active>{place.categoryLabel}</TagChip>
+              {place.tags.slice(0, 3).map((tag) => (
+                <TagChip key={tag}>{tag}</TagChip>
+              ))}
             </div>
           </div>
-        </section>
 
-        <section className="-mt-0 rounded-t-[28px] bg-white px-5 pb-28 pt-7 md:mt-0 md:rounded-none md:px-8 md:py-10">
-          <h1 className="text-2xl font-extrabold md:text-3xl">{place.name}</h1>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <TagChip compact>{place.categoryLabel}</TagChip>
-            {place.tags.map((tag) => (
-              <TagChip compact key={tag}>
-                {tag}
-              </TagChip>
-            ))}
-          </div>
-          <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-zinc-500">
-            <span className="flex items-center gap-1 text-[var(--warning)]">
-              <Icon className="h-4 w-4" filled name="star" />
-              {place.rating}
-            </span>
-            <span>({place.reviewCount})</span>
-            <span>-</span>
-            <span>{place.distance}</span>
-          </div>
-          <p className="mt-5 text-sm leading-7 text-[var(--text-secondary)] md:text-base">
+          <dl className="mt-8 space-y-5 border-y border-[var(--border)] py-6">
+            <div>
+              <dt className="text-sm font-black">주소</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-500">{place.address}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-black">영업시간</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-500">{place.hours}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-black">평점</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                <Icon className="h-4 w-4 text-[var(--warning)]" filled name="star" />
+                {place.rating || "-"} · 기록 {place.reviewCount}개 · {place.distance}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-6 text-base font-semibold leading-8 text-zinc-600">
             {place.description}
           </p>
 
-          <div className="mt-7 divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] bg-white">
-            <div className="flex items-start gap-3 p-4">
-              <Icon className="mt-0.5 h-5 w-5 text-zinc-500" name="mapPin" />
-              <div>
-                <p className="text-sm font-bold">{copy.location}</p>
-                <p className="mt-1 text-sm text-zinc-500">{place.address}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-4">
-              <Icon className="mt-0.5 h-5 w-5 text-zinc-500" name="clock" />
-              <div>
-                <p className="text-sm font-bold">{copy.hours}</p>
-                <p className="mt-1 text-sm text-zinc-500">{place.hours}</p>
-              </div>
-            </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_1.4fr]">
+            <Button variant="secondary">
+              ♡ 저장하기
+            </Button>
+            <Button href={`/review/write?placeId=${place.id}`}>
+              이 장소 기록하기
+            </Button>
           </div>
+        </aside>
+      </section>
 
-          <Button
-            className="mt-8 hidden w-full md:inline-flex !text-white [&>*]:!text-white"
-            href={`/review/write?placeId=${place.id}`}
-          >
-            {copy.record}
-          </Button>
-        </section>
-      </div>
+      <section className="mt-12">
+        <h2 className="text-xl font-black">방문자 기록</h2>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {mockReviews.slice(0, 2).map((review) => (
+            <article className="wire-panel p-5" key={review.id}>
+              <p className="text-sm font-black">{review.title}</p>
+              <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-zinc-500">
+                {review.memory}
+              </p>
+              <p className="mt-4 text-xs font-bold text-zinc-400">{review.date}</p>
+            </article>
+          ))}
+        </div>
+      </section>
     </AppShell>
   );
 }
-

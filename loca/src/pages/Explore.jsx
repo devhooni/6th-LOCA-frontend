@@ -1,80 +1,89 @@
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Icon } from "@/src/components/common/Icon";
 import { PlaceCard } from "@/src/components/common/PlaceCard";
-import { SegmentTabs } from "@/src/components/common/SegmentTabs";
 import { TagChip } from "@/src/components/common/TagChip";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { getPlaces } from "@/src/services/placeService";
-import { getTags } from "@/src/services/tagService";
 
-const copy = {
-  title: "새로운 로컬 탐색",
-  description:
-    "카페, 맛집, 술집, 문화 공간을 한눈에 둘러보세요.",
-  map: "지도에서 보기",
-};
+const primaryTabs = ["추천", "인기", "신규", "컬렉션"];
+const categoryTabs = ["전체", "카페", "맛집", "문화", "자연", "쇼핑"];
 
 export default function ExplorePage() {
   const [places, setPlaces] = useState([]);
-  const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getPlaces(), getTags()]).then(([placesData, tagsData]) => {
-      setPlaces(placesData);
-      setTags(tagsData);
+    getPlaces().then((data) => {
+      setPlaces(data);
       setLoading(false);
     });
   }, []);
 
-  if (loading) {
-    return (
-      <AppShell flush>
-        <SegmentTabs active="explore" />
-        <div className="px-5 pt-6 md:px-10 md:pt-8 text-zinc-500">불러오는 중...</div>
-      </AppShell>
-    );
-  }
-
-  const categories = tags
-    .slice(0, 5)
-    .map((tag) => ({ key: tag.id, label: tag.name }));
-
   return (
-    <AppShell flush>
-      <SegmentTabs active="explore" />
-      <section className="px-5 pt-6 md:px-10 md:pt-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-extrabold md:text-3xl">{copy.title}</h1>
-            <p className="mt-2 hidden text-sm font-semibold text-zinc-500 md:block">
-              {copy.description}
-            </p>
-          </div>
-          <Link
-            aria-label={copy.map}
-            className="rounded-full p-2 text-zinc-500 md:flex md:h-11 md:items-center md:gap-2 md:rounded-xl md:border md:border-[var(--border)] md:bg-white md:px-4 md:text-sm md:font-bold"
-            href="/map"
-          >
-            <Icon name="sliders" />
-            <span className="hidden md:inline">{copy.map}</span>
-          </Link>
+    <AppShell>
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-4xl font-black">Explore</h1>
+          <p className="mt-3 text-base font-semibold text-zinc-500">
+            취향에 맞는 장소와 컬렉션을 둘러보세요.
+          </p>
         </div>
-        <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
-          {categories.map((category) => (
-            <TagChip active={category.key === "all"} key={category.key}>
-              {category.label}
+        <Link className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--border)] px-4 text-sm font-bold interactive" to="/map">
+          <Icon className="h-4 w-4" name="sliders" />
+          지도에서 보기
+        </Link>
+      </section>
+
+      <div className="mt-8 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {primaryTabs.map((item, index) => (
+            <TagChip active={index === 0} key={item}>
+              {item}
             </TagChip>
           ))}
         </div>
-        <div className="mt-5 space-y-4 md:grid md:grid-cols-2 md:gap-5 md:space-y-0 lg:grid-cols-3">
-          {places.map((place) => (
-            <PlaceCard key={place.id} place={place} />
+        <div className="flex flex-wrap gap-2">
+          {categoryTabs.map((item, index) => (
+            <TagChip active={index === 0} key={item}>
+              {item}
+            </TagChip>
           ))}
         </div>
-      </section>
+      </div>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
+        <section>
+          {loading ? (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div className="h-64 animate-pulse rounded-lg bg-zinc-100" key={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {places.slice(0, 6).map((place) => (
+                <PlaceCard key={place.id} place={place} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="wire-panel p-6">
+          <h2 className="text-lg font-black">이번 주 인기</h2>
+          <ol className="mt-5 space-y-5">
+            {places.slice(0, 5).map((place, index) => (
+              <li className="flex gap-4" key={place.id}>
+                <span className="w-8 text-lg font-black text-zinc-300">{String(index + 1).padStart(2, "0")}</span>
+                <Link className="min-w-0 flex-1 hover:underline" to={`/place/${place.id}`}>
+                  <p className="truncate text-sm font-black">{place.name}</p>
+                  <p className="mt-1 text-xs font-semibold text-zinc-500">{place.categoryLabel} · {place.distance}</p>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </aside>
+      </div>
     </AppShell>
   );
 }
-

@@ -1,5 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LoginPage from "./pages/Login";
+import OnboardingPage from "./pages/Onboarding";
 import HomePage from "./pages/Home";
 import ExplorePage from "./pages/Explore";
 import ForYouPage from "./pages/ForYou";
@@ -19,6 +21,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/for-you" element={<ForYouPage />} />

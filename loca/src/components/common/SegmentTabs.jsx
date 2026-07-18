@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 export function SegmentTabs({ active }) {
   const tabs = [
@@ -13,7 +13,7 @@ export function SegmentTabs({ active }) {
           className={`relative pb-3 pt-5 text-lg font-bold ${
             active === tab.key ? "text-[var(--brand)]" : "text-zinc-300"
           }`}
-          href={tab.href}
+          to={tab.href}
           key={tab.key}
         >
           {tab.label}

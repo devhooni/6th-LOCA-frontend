@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Button } from "@/src/components/common/Button";
 import { createTag, deleteTag } from "@/src/services/tagService";

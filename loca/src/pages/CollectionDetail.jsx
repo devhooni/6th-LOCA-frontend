@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { TagChip } from "@/src/components/common/TagChip";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { getCollectionById } from "@/src/services/collectionService";
@@ -43,7 +43,7 @@ export default function CollectionDetailPage() {
   return (
     <AppShell>
       <div className="w-full md:pl-8">
-        <Link className="text-sm font-bold text-zinc-500" href="/collections">
+        <Link className="text-sm font-bold text-zinc-500" to="/collections">
           ← Collections
         </Link>
         <section className="mt-5 overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(24,24,27,0.08)]">
@@ -80,7 +80,7 @@ export default function CollectionDetailPage() {
           {(collection.places ?? []).map((place, index) => (
             <Link
               className="relative flex gap-4 rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
-              href={`/place/${place.id}`}
+              to={`/place/${place.id}`}
               key={place.id}
             >
               <div className="flex w-8 shrink-0 flex-col items-center">

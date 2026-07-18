@@ -2,15 +2,11 @@ import { BottomNav } from "./BottomNav";
 
 export function AppShell({ children, showNav = true, flush = false }) {
   return (
-    <div className="phone-shell relative overflow-hidden">
-      <main
-        className={`app-content ${showNav ? "safe-bottom" : ""} ${
-          flush ? "md:pl-[256px]" : "px-5 pt-5 md:px-10 md:pt-10 md:pl-[296px]"
-        }`}
-      >
+    <div className="app-shell">
+      {showNav ? <BottomNav /> : null}
+      <main className={`app-content ${flush ? "app-content--flush" : ""}`}>
         {children}
       </main>
-      {showNav ? <BottomNav /> : null}
     </div>
   );
 }

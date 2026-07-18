@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 const variants = {
-  primary: "bg-[var(--brand)] text-white hover:bg-[var(--primary-hover)]",
+  primary: "bg-black text-white hover:bg-[var(--primary-hover)]",
   secondary:
     "border border-[var(--border)] bg-white text-[var(--text)] hover:bg-zinc-50",
   ghost: "bg-transparent text-[var(--text-secondary)] hover:bg-zinc-100",
@@ -14,11 +14,11 @@ export function Button({
   className = "",
   onClick,
 }) {
-  const classes = `inline-flex h-12 items-center justify-center rounded-xl px-5 text-sm font-semibold transition ${variants[variant]} ${className}`;
+  const classes = `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold transition ${variants[variant]} ${className}`;
 
   if (href) {
     return (
-      <Link className={classes} href={href}>
+      <Link className={classes} to={href}>
         {children}
       </Link>
     );

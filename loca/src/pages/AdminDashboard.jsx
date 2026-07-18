@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { getPlaces } from "@/src/services/placeService";
 import { getTags } from "@/src/services/tagService";
@@ -40,7 +40,7 @@ export default function AdminPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Link
             className="rounded-2xl bg-white p-6 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
-            href="/admin/places"
+            to="/admin/places"
           >
             <p className="text-lg font-extrabold">{copy.places}</p>
             <p className="mt-4 text-sm font-semibold text-zinc-500">
@@ -50,7 +50,7 @@ export default function AdminPage() {
           </Link>
           <Link
             className="rounded-2xl bg-white p-6 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
-            href="/admin/tags"
+            to="/admin/tags"
           >
             <p className="text-lg font-extrabold">{copy.tags}</p>
             <p className="mt-4 text-sm font-semibold text-zinc-500">

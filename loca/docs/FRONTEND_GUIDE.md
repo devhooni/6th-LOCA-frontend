@@ -21,7 +21,7 @@
 - `src/types`: 도메인 형태를 정리한 JS 모듈
 - `src/mocks`: 백엔드 미연결 시 사용하는 데이터
 
-현재는 Vite + React Router 구조입니다. 일부 Next 호환 import는 `vite.config.js` alias로 유지되고 있으므로, 새 코드에서는 React Router 기준으로 작성하고 기존 코드는 별도 정리 PR에서 교체합니다.
+현재는 Vite + React Router 구조입니다. 새 코드는 React Router 기준으로 작성합니다.
 
 ## Component Rule
 

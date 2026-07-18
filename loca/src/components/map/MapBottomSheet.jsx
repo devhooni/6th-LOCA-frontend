@@ -1,7 +1,5 @@
-"use client";
-
-import Link from "next/link";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
@@ -79,13 +77,13 @@ export function MapBottomSheet({ place }) {
           </Button>
           <Link
             className="inline-flex h-11 items-center justify-center rounded-xl bg-[var(--brand)] text-sm font-semibold !text-white md:h-12"
-            href={`/review/write?placeId=${place.id}`}
+            to={`/review/write?placeId=${place.id}`}
           >
             기록
           </Link>
           <Link
             className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700"
-            href="/collections"
+            to="/collections"
           >
             컬렉션
           </Link>

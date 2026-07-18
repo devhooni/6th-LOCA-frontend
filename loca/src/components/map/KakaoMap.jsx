@@ -1,23 +1,13 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
-import { getDefaultSelectedPlace, loadKakaoMapSdk } from "@/src/lib/kakaoMap";
-import { MapBottomSheet } from "./MapBottomSheet";
+import { loadKakaoMapSdk } from "@/src/lib/kakaoMap";
 
-export function KakaoMap({ places }) {
+export function KakaoMap({ places, selectedPlace, onSelectPlace }) {
   const mapRef = useRef(null);
-  const [selectedPlace, setSelectedPlace] = useState(
-    getDefaultSelectedPlace(places),
-  );
   const [loadError, setLoadError] = useState("");
-  const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
-  const message = appKey
-    ? loadError
-    : "카카오맵 API 키가 필요합니다. NEXT_PUBLIC_KAKAO_MAP_KEY를 설정해주세요.";
+  const appKey = import.meta.env.VITE_PUBLIC_KAKAO_MAP_KEY;
 
   useEffect(() => {
-    if (!mapRef.current) return;
-    if (!appKey) return;
+    if (!mapRef.current || !appKey) return undefined;
 
     let cancelled = false;
 
@@ -25,7 +15,8 @@ export function KakaoMap({ places }) {
       .then((kakao) => {
         if (cancelled || !mapRef.current) return;
 
-        const center = new kakao.maps.LatLng(37.5563, 126.9236);
+        const centerPlace = selectedPlace ?? places[0];
+        const center = new kakao.maps.LatLng(centerPlace?.lat ?? 37.5563, centerPlace?.lng ?? 126.9236);
         const map = new kakao.maps.Map(mapRef.current, { center, level: 4 });
 
         places.forEach((place) => {
@@ -36,7 +27,7 @@ export function KakaoMap({ places }) {
           });
 
           kakao.maps.event.addListener(marker, "click", () => {
-            setSelectedPlace(place);
+            onSelectPlace?.(place);
             map.setCenter(new kakao.maps.LatLng(place.lat, place.lng));
           });
         });
@@ -48,21 +39,37 @@ export function KakaoMap({ places }) {
     return () => {
       cancelled = true;
     };
-  }, [appKey, places]);
+  }, [appKey, onSelectPlace, places, selectedPlace]);
 
-  return (
-    <div className="relative h-[calc(100dvh-92px)] overflow-hidden bg-zinc-100 md:h-[calc(100dvh-56px)]">
-      <div ref={mapRef} className="h-full w-full" />
-      {message ? (
-        <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-          <div className="rounded-2xl bg-white p-5 text-sm font-semibold leading-6 text-[var(--text-secondary)] shadow-lg">
-            {message}
-          </div>
+  if (!appKey || loadError) {
+    return (
+      <div className="relative h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100">
+        <div className="absolute inset-0 opacity-70">
+          <div className="absolute left-[8%] top-[18%] h-24 w-44 rounded-lg bg-zinc-200" />
+          <div className="absolute right-[12%] top-[12%] h-32 w-52 rounded-lg bg-zinc-200" />
+          <div className="absolute bottom-[16%] left-[22%] h-40 w-56 rounded-lg bg-zinc-200" />
+          <div className="absolute bottom-[10%] right-[18%] h-28 w-44 rounded-lg bg-zinc-200" />
         </div>
-      ) : (
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(24,24,27,0.08)_25%,transparent_25%),linear-gradient(225deg,rgba(24,24,27,0.08)_25%,transparent_25%)] bg-[length:34px_34px] opacity-30" />
-      )}
-      {selectedPlace ? <MapBottomSheet place={selectedPlace} /> : null}
-    </div>
-  );
+        {places.slice(0, 6).map((place, index) => (
+          <button
+            aria-label={`${place.name} 선택`}
+            className={`absolute flex h-9 w-9 items-center justify-center rounded-full text-xs font-black shadow-sm ${
+              selectedPlace?.id === place.id ? "bg-black text-white" : "bg-white text-black"
+            }`}
+            key={place.id}
+            onClick={() => onSelectPlace?.(place)}
+            style={{ left: `${18 + (index % 3) * 24}%`, top: `${22 + Math.floor(index / 3) * 28}%` }}
+            type="button"
+          >
+            {index + 1}
+          </button>
+        ))}
+        <div className="absolute bottom-5 left-5 rounded-lg bg-white px-4 py-3 text-sm font-semibold text-zinc-600 shadow-sm">
+          {loadError || "Kakao Map 키가 없어서 와이어프레임 지도로 표시 중입니다."}
+        </div>
+      </div>
+    );
+  }
+
+  return <div ref={mapRef} className="h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100" />;
 }

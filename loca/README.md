@@ -13,7 +13,7 @@ LOCA는 홍대 주변의 장소와 개인의 경험을 기록하고 공유하는
 - Spring Boot REST API 연동 예정
 - Supabase 기반 데이터 저장 예정
 
-현재 원격 `main`은 Next.js에서 Vite 기반 React 앱으로 마이그레이션된 상태입니다. 일부 컴포넌트에는 `next/link`, `next/navigation`, `next/image` import가 남아 있지만, `vite.config.js`에서 호환 래퍼로 alias 처리하고 있어 기존 화면 흐름을 유지합니다. 다음 정리 PR에서는 Next 호환 import를 React Router 기준 import로 점진적으로 교체하는 것을 권장합니다.
+현재 앱은 Vite 기반 React 프로젝트이며, 라우팅은 React Router 기준으로 동작합니다.
 
 ## Run
 
@@ -53,4 +53,4 @@ src/mocks/            백엔드 미연결 시 사용하는 Mock Data
 docs/                 프로젝트 규칙과 결정 기록
 ```
 
-현재 `app` 폴더와 `next-env.d.ts` 등 Next.js 잔여 파일이 일부 남아 있을 수 있습니다. 기능이 안정된 뒤 별도 정리 PR에서 제거 여부를 결정합니다.
+새 코드는 Vite와 React Router 기준으로 작성합니다.

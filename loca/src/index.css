@@ -1,20 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #18181b;
-  --primary-hover: #27272a;
-  --accent: #6366f1;
-  --brand: #18181b;
-  --brand-soft: #f4f4f5;
-  --background: #fafafa;
+  --primary: #111111;
+  --primary-hover: #2f2f2f;
+  --brand: #111111;
+  --background: #ffffff;
   --surface: #ffffff;
-  --text: #18181b;
-  --text-secondary: #71717a;
-  --text-muted: #a1a1aa;
-  --border: #e4e4e7;
-  --divider: #f4f4f5;
-  --success: #6366f1;
-  --warning: #f59e0b;
+  --surface-muted: #f6f6f6;
+  --text: #111111;
+  --text-secondary: #666666;
+  --text-muted: #9a9a9a;
+  --border: #e5e5e5;
+  --divider: #f0f0f0;
+  --warning: #f2a900;
   --danger: #ef4444;
 }
 
@@ -28,19 +26,15 @@
   box-sizing: border-box;
 }
 
-html {
+html,
+body,
+#root {
   min-height: 100%;
-  background: #f4f4f5;
-  height: 100dvh;
 }
 
 body {
-  height: 100dvh;
-  min-height: 100%;
   margin: 0;
-  background:
-    radial-gradient(circle at 14% 10%, rgba(24, 24, 27, 0.08), transparent 30%),
-    linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+  background: var(--background);
   color: var(--text);
   font-family:
     Pretendard,
@@ -61,29 +55,69 @@ input {
   font: inherit;
 }
 
-.phone-shell {
-  width: min(100%, 430px);
-  height: 100dvh;
-  margin: 0 auto;
-  background: var(--background);
-  box-shadow: 0 24px 80px rgba(17, 24, 39, 0.12);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.safe-bottom {
-  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+.app-shell {
+  min-height: 100dvh;
+  background: var(--background);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0 48px;
+  backdrop-filter: blur(14px);
 }
 
 .app-content {
-  flex: 1;
-  overflow-y: auto;
+  width: min(100%, 1344px);
+  margin: 0 auto;
+  padding: 48px;
 }
 
-.card-shadow {
-  box-shadow: 0 10px 28px rgba(24, 24, 27, 0.08);
+.app-content--flush {
+  width: 100%;
+  max-width: none;
+}
+
+.wire-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.wire-panel {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.interactive {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.interactive:hover {
+  border-color: #c8c8c8;
+  background: #fafafa;
+}
+
+.interactive:active {
+  transform: translateY(1px);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -95,30 +129,21 @@ input {
   scrollbar-width: none;
 }
 
-@media (min-width: 768px) {
-  body {
-    padding: 28px;
-  }
-
-  .phone-shell {
-    width: min(100%, 1180px);
-    height: 90dvh;
-    border-radius: 28px;
-    overflow: hidden;
-    display: flex;
+@media (max-width: 900px) {
+  .app-header {
+    align-items: flex-start;
     flex-direction: column;
-    overflow: hidden;
-  }
-
-  .safe-bottom {
-    padding-bottom: 48px;
+    gap: 12px;
+    padding: 16px 20px;
   }
 
   .app-content {
-    min-height: calc(100dvh - 56px);
-    padding-left: 256px;
-    height: 100%;
-    min-height: unset;
-    padding-left: 256px;
+    padding: 28px 20px 40px;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-content {
+    padding: 24px 16px 36px;
   }
 }
