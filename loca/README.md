@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LOCA Frontend
 
-## Getting Started
+LOCA는 홍대 주변의 장소와 개인의 경험을 기록하고 공유하는 로컬 탐험 서비스입니다. 기존 지도에 있는 상업 장소뿐 아니라 사용자가 직접 남기는 Private Place까지 다루는 것을 목표로 합니다.
 
-First, run the development server:
+## Tech Stack
+
+- Vite
+- React
+- React Router
+- JavaScript / JSX
+- Tailwind CSS
+- Kakao Map JavaScript SDK
+- Spring Boot REST API 연동 예정
+- Supabase 기반 데이터 저장 예정
+
+현재 원격 `main`은 Next.js에서 Vite 기반 React 앱으로 마이그레이션된 상태입니다. 일부 컴포넌트에는 `next/link`, `next/navigation`, `next/image` import가 남아 있지만, `vite.config.js`에서 호환 래퍼로 alias 처리하고 있어 기존 화면 흐름을 유지합니다. 다음 정리 PR에서는 Next 호환 import를 React Router 기준 import로 점진적으로 교체하는 것을 권장합니다.
+
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 `http://localhost:5173`을 엽니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Check
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run build
+```
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+로컬 개발에서는 `.env.local`을 사용할 수 있고, 배포 환경에서는 플랫폼 환경변수로 같은 값을 설정합니다. 실제 키는 저장소에 커밋하지 않습니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+VITE_PUBLIC_KAKAO_MAP_KEY=
+VITE_PUBLIC_API_BASE_URL=
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Folder Structure
 
-## Deploy on Vercel
+```txt
+src/main.jsx          앱 진입점
+src/App.jsx           React Router 라우트 정의
+src/pages/            화면 단위 컴포넌트
+src/components/       공통 UI, 레이아웃, 지도 컴포넌트
+src/services/         API 요청 및 Mock fallback 계층
+src/types/            도메인 형태를 정리한 JS 모듈
+src/mocks/            백엔드 미연결 시 사용하는 Mock Data
+docs/                 프로젝트 규칙과 결정 기록
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+현재 `app` 폴더와 `next-env.d.ts` 등 Next.js 잔여 파일이 일부 남아 있을 수 있습니다. 기능이 안정된 뒤 별도 정리 PR에서 제거 여부를 결정합니다.
