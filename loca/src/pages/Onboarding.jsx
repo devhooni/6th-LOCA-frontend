@@ -27,7 +27,7 @@ export default function OnboardingPage() {
       <div className="grid min-h-[620px] items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
         <section>
           <p className="text-sm font-black text-zinc-400">{step + 1}/3</p>
-          <h1 className="mt-6 max-w-xl text-4xl font-black leading-tight lg:text-6xl">
+          <h1 className="mt-8 max-w-xl text-4xl font-black leading-tight lg:text-6xl">
             {current.title}
           </h1>
           <p className="mt-6 max-w-md text-base font-semibold leading-7 text-zinc-500">
@@ -35,15 +35,23 @@ export default function OnboardingPage() {
           </p>
           <div className="mt-10 flex items-center gap-3">
             {steps.map((item, index) => (
-              <span className={`h-2.5 rounded-full ${index === step ? "w-9 bg-black" : "w-2.5 bg-zinc-300"}`} key={item.title} />
+              <span
+                className={`h-2.5 rounded-full ${index === step ? "w-9 bg-black" : "w-2.5 bg-zinc-300"}`}
+                key={item.title}
+              />
             ))}
           </div>
           {isLast ? (
-            <Link className="mt-10 inline-flex h-12 min-w-36 items-center justify-center rounded-lg bg-black px-6 text-sm font-bold text-white" to="/">
+            <Link
+              className="mt-10 inline-flex h-12 min-w-36 items-center justify-center rounded-lg bg-black px-6 text-sm font-bold text-white"
+              to="/">
               시작하기
             </Link>
           ) : (
-            <button className="mt-10 h-12 min-w-36 rounded-lg bg-black px-6 text-sm font-bold text-white" onClick={() => setStep((value) => value + 1)} type="button">
+            <button
+              className="mt-10 h-12 min-w-36 rounded-lg bg-black px-6 text-sm font-bold text-white"
+              onClick={() => setStep((value) => value + 1)}
+              type="button">
               다음
             </button>
           )}
