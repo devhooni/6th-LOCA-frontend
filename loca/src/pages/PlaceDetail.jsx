@@ -4,19 +4,24 @@ import { Button } from "@/src/components/common/Button";
 import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
 import { AppShell } from "@/src/components/layout/AppShell";
-import { getPlaceById } from "@/src/services/placeService";
-import { mockReviews } from "@/src/mocks/reviews";
+import { getPublicPlaceById, getPlaceReviews } from "@/src/services/placeService";
 
 export default function PlaceDetailPage() {
   const { id } = useParams();
   const [place, setPlace] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getPlaceById(id).then((data) => {
-      setPlace(data);
-      setLoading(false);
-    });
+    setLoading(true);
+    Promise.all([getPublicPlaceById(id), getPlaceReviews(id)])
+      .then(([placeData, reviewsData]) => {
+        setPlace(placeData);
+        setReviews(reviewsData);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [id]);
 
   if (loading) {
@@ -54,7 +59,7 @@ export default function PlaceDetailPage() {
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <TagChip active>{place.categoryLabel}</TagChip>
-              {place.tags.slice(0, 3).map((tag) => (
+              {place.tags?.slice(0, 3).map((tag) => (
                 <TagChip key={tag}>{tag}</TagChip>
               ))}
             </div>
@@ -73,7 +78,7 @@ export default function PlaceDetailPage() {
               <dt className="text-sm font-black">평점</dt>
               <dd className="mt-1 flex items-center gap-2 text-sm font-semibold text-zinc-500">
                 <Icon className="h-4 w-4 text-[var(--warning)]" filled name="star" />
-                {place.rating || "-"} · 기록 {place.reviewCount}개 · {place.distance}
+                {place.rating || "-"} · 기록 {place.reviewCount ?? reviews.length}개 · {place.distance}
               </dd>
             </div>
           </dl>
@@ -94,13 +99,13 @@ export default function PlaceDetailPage() {
       </section>
 
       <section className="mt-12">
-        <h2 className="text-xl font-black">방문자 기록</h2>
+        <h2 className="text-xl font-black">방문자 기록 ({reviews.length})</h2>
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          {mockReviews.slice(0, 2).map((review) => (
+          {reviews.map((review) => (
             <article className="wire-panel p-5" key={review.id}>
               <p className="text-sm font-black">{review.title}</p>
               <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-zinc-500">
-                {review.memory}
+                {review.memory || review.review}
               </p>
               <p className="mt-4 text-xs font-bold text-zinc-400">{review.date}</p>
             </article>
