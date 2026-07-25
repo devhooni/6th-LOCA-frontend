@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { Icon } from "@/src/components/common/Icon";
 import { AppShell } from "@/src/components/layout/AppShell";
-import { getPlaceById } from "@/src/mocks/places";
+import { getPlaceById } from "@/src/services/placeService";
+import { createReview } from "@/src/services/reviewService";
 
 const companions = ["혼자", "친구와", "데이트", "가족"];
 const visibilityOptions = ["전체 공개", "나만 보기"];
@@ -12,20 +13,43 @@ export function ReviewWriteForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const placeId = searchParams.get("placeId") ?? "object-yeonnam";
-  const place = useMemo(() => getPlaceById(placeId), [placeId]);
+  const [place, setPlace] = useState(null);
   const [companion, setCompanion] = useState("혼자");
   const [visibility, setVisibility] = useState("전체 공개");
   const [title, setTitle] = useState("");
   const [review, setReview] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const complete = () => {
+  useEffect(() => {
+    getPlaceById(placeId).then(setPlace);
+  }, [placeId]);
+
+  const complete = async () => {
     if (!title.trim() || !review.trim()) {
       window.alert("제목과 경험 내용을 입력해주세요.");
       return;
     }
 
-    window.alert("기록이 저장되었습니다.");
-    navigate("/my");
+    setSaving(true);
+    try {
+      await createReview({
+        placeId,
+        placeName: place?.name,
+        title,
+        review,
+        memory: review,
+        companion,
+        visibility,
+        mood: "calm",
+        images: [],
+      });
+      window.alert("기록이 저장되었습니다.");
+      navigate("/my");
+    } catch {
+      window.alert("기록 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -37,7 +61,7 @@ export function ReviewWriteForm() {
             오늘의 장소와 경험을 간단히 남겨보세요.
           </p>
         </div>
-        <button className="h-11 rounded-lg border border-[var(--border)] px-4 text-sm font-bold interactive" type="button">
+        <button className="h-11 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-bold text-zinc-700 interactive" type="button">
           임시저장
         </button>
       </section>
@@ -59,10 +83,10 @@ export function ReviewWriteForm() {
           <label className="mt-6 block text-sm font-bold" htmlFor="record-place">
             장소
             <input
-              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] px-4 outline-none focus:border-black"
+              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
               id="record-place"
               placeholder="장소를 검색하거나 선택하세요"
-              value={place.name}
+              value={place?.name ?? "장소를 불러오는 중"}
               readOnly
             />
           </label>
@@ -70,7 +94,7 @@ export function ReviewWriteForm() {
           <label className="mt-5 block text-sm font-bold" htmlFor="record-title">
             제목
             <input
-              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] px-4 outline-none focus:border-black"
+              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
               id="record-title"
               maxLength={40}
               onChange={(event) => setTitle(event.target.value)}
@@ -82,7 +106,7 @@ export function ReviewWriteForm() {
           <label className="mt-5 block text-sm font-bold" htmlFor="record-review">
             경험
             <textarea
-              className="mt-2 h-36 w-full resize-none rounded-lg border border-[var(--border)] p-4 outline-none focus:border-black"
+              className="mt-2 h-36 w-full resize-none rounded-lg border border-[var(--border)] bg-white p-4 outline-none focus:border-zinc-500"
               id="record-review"
               maxLength={200}
               onChange={(event) => setReview(event.target.value)}
@@ -97,8 +121,8 @@ export function ReviewWriteForm() {
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {companions.map((item) => (
                 <button
-                  className={`h-11 rounded-lg border text-sm font-bold ${
-                    companion === item ? "border-black bg-black text-white" : "border-[var(--border)] bg-white text-zinc-600"
+                  className={`h-11 rounded-lg border text-sm font-bold interactive ${
+                    companion === item ? "ui-dark" : "border-[var(--border)] bg-white text-zinc-600"
                   }`}
                   key={item}
                   onClick={() => setCompanion(item)}
@@ -115,8 +139,8 @@ export function ReviewWriteForm() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               {visibilityOptions.map((item) => (
                 <button
-                  className={`h-11 rounded-lg border text-sm font-bold ${
-                    visibility === item ? "border-black bg-black text-white" : "border-[var(--border)] bg-white text-zinc-600"
+                  className={`h-11 rounded-lg border text-sm font-bold interactive ${
+                    visibility === item ? "ui-dark" : "border-[var(--border)] bg-white text-zinc-600"
                   }`}
                   key={item}
                   onClick={() => setVisibility(item)}
@@ -129,7 +153,7 @@ export function ReviewWriteForm() {
           </div>
 
           <Button className="mt-8 w-full" onClick={complete}>
-            기록 완료
+            {saving ? "저장 중" : "기록 완료"}
           </Button>
         </section>
       </div>

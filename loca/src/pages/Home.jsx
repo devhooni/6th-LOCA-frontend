@@ -1,33 +1,40 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
 import { AppShell } from "@/src/components/layout/AppShell";
-import { mockPlaces } from "@/src/mocks/places";
+import { getPlaces } from "@/src/services/placeService";
 
 const moods = ["조용한", "새로운", "자연", "맛있는", "예술적인"];
 
 export default function HomePage() {
-  const places = mockPlaces.slice(0, 4);
+  const [places, setPlaces] = useState([]);
+
+  useEffect(() => {
+    getPlaces().then((data) => {
+      setPlaces(data.slice(0, 4));
+    });
+  }, []);
 
   return (
     <AppShell>
       <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-4xl font-black leading-tight lg:text-5xl">
-            안녕하세요, 민지님
+            안녕하세요, 진우님
           </h1>
           <p className="mt-4 text-lg font-semibold text-zinc-500">
             오늘도 새로운 장소를 발견해 보세요.
           </p>
         </div>
-        <Link className="inline-flex h-12 items-center justify-center rounded-lg bg-black px-6 text-sm font-bold text-white" to="/explore">
+        <Link className="ui-dark inline-flex h-12 items-center justify-center rounded-lg px-6 text-sm font-bold" to="/explore">
           주변 장소 탐색
         </Link>
       </section>
 
-      <Link className="mt-10 flex h-14 items-center gap-3 rounded-lg border border-[var(--border)] px-5 text-zinc-500 interactive" to="/explore">
-        <Icon className="h-5 w-5" name="search" />
-        <span className="text-sm font-semibold">어디로 떠나볼까요?</span>
+      <Link className="mt-10 flex h-14 items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-5 text-zinc-700 interactive" to="/explore">
+        <Icon className="h-5 w-5 text-zinc-500" name="search" />
+        <span className="text-sm font-bold">어디로 떠나볼까요?</span>
       </Link>
 
       <section className="mt-10">
@@ -50,15 +57,19 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {places.map((place) => (
-            <Link className="wire-card interactive overflow-hidden" key={place.id} to={`/place/${place.id}`}>
-              <img alt="" className="h-40 w-full object-cover" src={place.imageUrl} />
-              <div className="p-4">
-                <h3 className="font-black">{place.name}</h3>
-                <p className="mt-1 text-sm font-semibold text-zinc-500">{place.categoryLabel}</p>
-              </div>
-            </Link>
-          ))}
+          {places.length > 0
+            ? places.map((place) => (
+                <Link className="wire-card interactive overflow-hidden" key={place.id} to={`/place/${place.id}`}>
+                  <img alt="" className="h-40 w-full object-cover" src={place.imageUrl} />
+                  <div className="p-4">
+                    <h3 className="font-black">{place.name}</h3>
+                    <p className="mt-1 text-sm font-semibold text-zinc-500">{place.categoryLabel}</p>
+                  </div>
+                </Link>
+              ))
+            : Array.from({ length: 4 }).map((_, index) => (
+                <div className="h-60 animate-pulse rounded-lg bg-zinc-100" key={index} />
+              ))}
         </div>
       </section>
     </AppShell>

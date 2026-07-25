@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 const variants = {
-  primary: "bg-black text-white hover:bg-[var(--primary-hover)]",
+  primary: "ui-dark hover:bg-[var(--primary-hover)]",
   secondary:
     "border border-[var(--border)] bg-white text-[var(--text)] hover:bg-zinc-50",
   ghost: "bg-transparent text-[var(--text-secondary)] hover:bg-zinc-100",

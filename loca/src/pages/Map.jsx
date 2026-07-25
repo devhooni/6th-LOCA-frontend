@@ -32,7 +32,7 @@ export default function MapPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[360px_1fr]">
         <aside className="wire-panel flex min-h-[560px] flex-col p-5">
-          <label className="flex h-12 items-center gap-3 rounded-lg border border-[var(--border)] px-4 text-sm font-semibold text-zinc-500" htmlFor="map-search">
+          <label className="flex h-12 items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-semibold text-zinc-500" htmlFor="map-search">
             <Icon className="h-5 w-5" name="search" />
             <input className="min-w-0 flex-1 outline-none placeholder:text-zinc-400" id="map-search" placeholder="지역 또는 장소 검색" />
           </label>
@@ -51,7 +51,7 @@ export default function MapPage() {
               : places.slice(0, 6).map((place) => (
                   <button
                     className={`flex w-full gap-3 rounded-lg border p-3 text-left interactive ${
-                      selectedPlace?.id === place.id ? "border-black bg-zinc-50" : "border-[var(--border)] bg-white"
+                      selectedPlace?.id === place.id ? "border-zinc-400 bg-zinc-50" : "border-[var(--border)] bg-white"
                     }`}
                     key={place.id}
                     onClick={() => setSelectedPlace(place)}
@@ -59,7 +59,7 @@ export default function MapPage() {
                   >
                     <img alt="" className="h-16 w-16 rounded-lg object-cover" src={place.imageUrl} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-black">{place.name}</span>
+                      <span className="block truncate text-sm font-black text-zinc-950">{place.name}</span>
                       <span className="mt-1 block text-xs font-semibold text-zinc-500">{place.categoryLabel} · {place.distance}</span>
                       <span className="mt-2 block text-xs text-zinc-400">{place.tags.slice(0, 2).join(" · ")}</span>
                     </span>
@@ -68,7 +68,7 @@ export default function MapPage() {
           </div>
 
           {selectedPlace ? (
-            <Link className="mt-4 flex h-11 items-center justify-center rounded-lg bg-black text-sm font-bold text-white" to={`/place/${selectedPlace.id}`}>
+            <Link className="ui-dark mt-4 flex h-11 items-center justify-center rounded-lg text-sm font-bold" to={`/place/${selectedPlace.id}`}>
               장소 상세 보기
             </Link>
           ) : null}

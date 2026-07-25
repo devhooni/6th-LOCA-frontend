@@ -103,6 +103,26 @@ a {
   background: var(--surface);
 }
 
+.ui-dark {
+  border-color: #111111 !important;
+  background: #111111 !important;
+  color: #ffffff !important;
+}
+
+.ui-dark * {
+  color: inherit !important;
+}
+
+.ui-soft-selected {
+  border-color: #d4d4d8 !important;
+  background: #f4f4f5 !important;
+  color: #111111 !important;
+}
+
+.ui-soft-selected * {
+  color: inherit !important;
+}
+
 .interactive {
   transition:
     border-color 160ms ease,

@@ -96,7 +96,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
           <button
             aria-label={`${place.name} 선택`}
             className={`absolute flex h-9 w-9 items-center justify-center rounded-full text-xs font-black shadow-sm ${
-              selectedPlace?.id === place.id ? "bg-black text-white" : "bg-white text-black"
+              selectedPlace?.id === place.id ? "ui-dark" : "bg-white text-black"
             }`}
             key={place.id}
             onClick={() => onSelectPlace?.(place)}

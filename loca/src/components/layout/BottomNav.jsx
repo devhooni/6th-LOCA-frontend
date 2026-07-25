@@ -3,8 +3,13 @@ import { Icon } from "@/src/components/common/Icon";
 
 const navItems = [
   { href: "/", label: "홈", match: (path) => path === "/" },
-  { href: "/explore", label: "Explore", match: (path) => path.startsWith("/explore") || path.startsWith("/place/") },
+  {
+    href: "/explore",
+    label: "Explore",
+    match: (path) => path.startsWith("/explore") || (path.startsWith("/place/") && path !== "/place/new"),
+  },
   { href: "/map", label: "지도", match: (path) => path.startsWith("/map") },
+  { href: "/place/new", label: "장소 추가", match: (path) => path.startsWith("/place/new") },
   { href: "/review/write", label: "기록하기", match: (path) => path.startsWith("/review") },
   { href: "/my", label: "마이페이지", match: (path) => path.startsWith("/my") },
 ];
@@ -25,7 +30,7 @@ export function BottomNav() {
           return (
             <Link
               className={`flex h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold interactive ${
-                active ? "bg-black text-white" : "text-zinc-500 hover:text-zinc-900"
+                active ? "ui-soft-selected border" : "border border-transparent text-zinc-500 hover:text-zinc-900"
               }`}
               key={item.href}
               to={item.href}
@@ -44,7 +49,7 @@ export function BottomNav() {
           <Icon className="h-5 w-5" name="bell" />
         </button>
         <Link className="h-10 rounded-full border border-[var(--border)] px-4 leading-10 hover:bg-zinc-50" to="/my">
-          민지님
+          진우님
         </Link>
       </div>
     </header>

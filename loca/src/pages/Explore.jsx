@@ -29,8 +29,8 @@ export default function ExplorePage() {
             취향에 맞는 장소와 컬렉션을 둘러보세요.
           </p>
         </div>
-        <Link className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--border)] px-4 text-sm font-bold interactive" to="/map">
-          <Icon className="h-4 w-4" name="sliders" />
+        <Link className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-bold text-zinc-900 interactive" to="/map">
+          <Icon className="h-4 w-4 text-zinc-500" name="sliders" />
           지도에서 보기
         </Link>
       </section>
@@ -69,7 +69,7 @@ export default function ExplorePage() {
           )}
         </section>
 
-        <aside className="wire-panel p-6">
+        <aside className="wire-panel bg-white p-6">
           <h2 className="text-lg font-black">이번 주 인기</h2>
           <ol className="mt-5 space-y-5">
             {places.slice(0, 5).map((place, index) => (
