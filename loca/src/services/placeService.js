@@ -64,15 +64,15 @@ export function formatPlace(raw, isPrivate = false) {
 export async function getPlaces() {
   try {
     const [publicData, privateData] = await Promise.all([
-      apiClient("/api/places/public", { fallback: [] }),
-      apiClient("/api/places/private", { fallback: [] }),
+      apiClient("/api/places/public"),
+      apiClient("/api/places/private"),
     ]);
 
-    const formattedPublic = (publicData || []).map((p) => formatPlace(p, false));
-    const formattedPrivate = (privateData || []).map((p) => formatPlace(p, true));
+    const formattedPublic = Array.isArray(publicData) ? publicData.map((p) => formatPlace(p, false)) : [];
+    const formattedPrivate = Array.isArray(privateData) ? privateData.map((p) => formatPlace(p, true)) : [];
     const combined = [...formattedPublic, ...formattedPrivate];
 
-    return combined.length > 0 ? combined : mockPlaces;
+    return combined;
   } catch {
     return mockPlaces;
   }
@@ -80,9 +80,8 @@ export async function getPlaces() {
 
 export async function getPublicPlaces() {
   try {
-    const data = await apiClient("/api/places/public", { fallback: [] });
-    const formatted = (data || []).map((p) => formatPlace(p, false));
-    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility !== "private");
+    const data = await apiClient("/api/places/public");
+    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
   } catch {
     return mockPlaces.filter((p) => p.visibility !== "private");
   }
@@ -90,57 +89,52 @@ export async function getPublicPlaces() {
 
 export async function getPrivatePlaces() {
   try {
-    const data = await apiClient("/api/places/private", { fallback: [] });
-    const formatted = (data || []).map((p) => formatPlace(p, true));
-    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility === "private");
+    const data = await apiClient("/api/places/private");
+    return Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
   } catch {
     return mockPlaces.filter((p) => p.visibility === "private");
   }
 }
 
 export async function getPlaceById(placeId) {
-  const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   try {
     const isNum = !isNaN(Number(placeId));
     if (isNum) {
       try {
-        const publicRes = await apiClient(`/api/places/public/${placeId}`, { fallback: null });
+        const publicRes = await apiClient(`/api/places/public/${placeId}`);
         if (publicRes) return formatPlace(publicRes, false);
       } catch {}
 
       try {
-        const privateRes = await apiClient(`/api/places/private/${placeId}`, { fallback: null });
+        const privateRes = await apiClient(`/api/places/private/${placeId}`);
         if (privateRes) return formatPlace(privateRes, true);
       } catch {}
     }
+    const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
     return fallback;
   } catch {
-    return fallback;
+    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   }
 }
 
 export async function getPublicPlaceById(placeId) {
-  const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   try {
     const isNum = !isNaN(Number(placeId));
     if (isNum) {
-      const publicRes = await apiClient(`/api/places/public/${placeId}`, { fallback: null });
+      const publicRes = await apiClient(`/api/places/public/${placeId}`);
       if (publicRes) return formatPlace(publicRes, false);
     }
     return getPlaceById(placeId);
   } catch {
-    return fallback;
+    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   }
 }
 
 export async function getPlaceReviews(placeId) {
-  const fallback = mockReviews.filter((review) => String(review.placeId) === String(placeId));
-  const finalFallback = fallback.length > 0 ? fallback : mockReviews.slice(0, 2);
-
   try {
-    const userReviews = await apiClient("/api/users/me/reviews", { fallback: [] });
-    if (Array.isArray(userReviews) && userReviews.length > 0) {
-      const filtered = userReviews
+    const userReviews = await apiClient("/api/users/me/reviews");
+    if (Array.isArray(userReviews)) {
+      return userReviews
         .filter((r) => String(r.placeId) === String(placeId))
         .map((r) => ({
           id: String(r.reviewId),
@@ -155,11 +149,10 @@ export async function getPlaceReviews(placeId) {
           atmosphereTags: r.atmosphereTags || [],
           images: r.imageUrls || [],
         }));
-      if (filtered.length > 0) return filtered;
     }
-    return finalFallback;
+    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
   } catch {
-    return finalFallback;
+    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
   }
 }
 
@@ -185,11 +178,6 @@ export async function createPlace(payload) {
   const res = await apiClient(endpoint, {
     method: "POST",
     body: JSON.stringify(body),
-    fallback: {
-      ...mockPlaces[0],
-      ...payload,
-      id: `mock-${Date.now()}`,
-    },
   });
 
   return formatPlace({ ...payload, ...res }, isPrivate);
@@ -214,15 +202,11 @@ export async function updatePlace(placeId, payload) {
     });
     return formatPlace({ ...payload, ...res }, isPrivate);
   } catch {
-    try {
-      const res = await apiClient(secondaryEndpoint, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      });
-      return formatPlace({ ...payload, ...res }, !isPrivate);
-    } catch {
-      return formatPlace({ id: placeId, ...payload }, isPrivate);
-    }
+    const res = await apiClient(secondaryEndpoint, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return formatPlace({ ...payload, ...res }, !isPrivate);
   }
 }
 
@@ -230,9 +214,7 @@ export async function deletePlace(placeId) {
   try {
     await apiClient(`/api/admin/places/${placeId}`, { method: "DELETE" });
   } catch {
-    try {
-      await apiClient(`/api/places/private/${placeId}`, { method: "DELETE" });
-    } catch {}
+    await apiClient(`/api/places/private/${placeId}`, { method: "DELETE" });
   }
 }
 
@@ -240,9 +222,8 @@ export async function getExploreRecommendations(tagIds = []) {
   if (!tagIds || tagIds.length === 0) return getPlaces();
   try {
     const query = tagIds.map((id) => `tagIds=${id}`).join("&");
-    const data = await apiClient(`/api/recommendations/explore?${query}`, { fallback: [] });
-    const formatted = (data || []).map((p) => formatPlace(p, false));
-    return formatted.length > 0 ? formatted : mockPlaces;
+    const data = await apiClient(`/api/recommendations/explore?${query}`);
+    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
   } catch {
     return mockPlaces;
   }

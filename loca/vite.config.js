@@ -12,4 +12,14 @@ export default defineConfig({
       "@": rootDir,
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "https://sixth-loca-backend-3-12qz.onrender.com",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 });
+
