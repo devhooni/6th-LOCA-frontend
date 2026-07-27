@@ -1,27 +1,32 @@
 const API_BASE_URL =
   typeof import.meta !== "undefined" && import.meta.env
-    ? import.meta.env.DEV
-      ? ""
-      : import.meta.env.VITE_PUBLIC_API_BASE_URL || "https://sixth-loca-backend-3-12qz.onrender.com"
-    : "https://sixth-loca-backend-3-12qz.onrender.com";
+    ? import.meta.env.VITE_PUBLIC_API_BASE_URL || ""
+    : "";
 
 export async function apiClient(path, options = {}) {
   const { fallback, ...fetchOptions } = options;
   let response;
 
-  const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
-
-  try {
-    response = await fetch(url, {
+  const tryFetch = async (targetUrl) => {
+    return await fetch(targetUrl, {
       ...fetchOptions,
       headers: {
         "Content-Type": "application/json",
         ...fetchOptions.headers,
       },
     });
+  };
+
+  try {
+    const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+    response = await tryFetch(url);
   } catch (error) {
-    if ("fallback" in options) return options.fallback;
-    throw new Error("현재 서버에 연결할 수 없습니다.");
+    try {
+      response = await tryFetch(path);
+    } catch {
+      if ("fallback" in options) return options.fallback;
+      throw new Error("현재 서버에 연결할 수 없습니다.");
+    }
   }
 
   if (!response.ok) {
@@ -37,6 +42,7 @@ export async function apiClient(path, options = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : undefined;
 }
+
 
 
 
