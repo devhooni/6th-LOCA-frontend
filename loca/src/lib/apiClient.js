@@ -1,38 +1,27 @@
 const API_BASE_URL =
-  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_API_BASE_URL !== undefined
-    ? import.meta.env.VITE_PUBLIC_API_BASE_URL
-    : "";
+  typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env.DEV
+      ? ""
+      : import.meta.env.VITE_PUBLIC_API_BASE_URL || "https://sixth-loca-backend-3-12qz.onrender.com"
+    : "https://sixth-loca-backend-3-12qz.onrender.com";
 
 export async function apiClient(path, options = {}) {
   const { fallback, ...fetchOptions } = options;
   let response;
 
-  const tryFetch = async (targetUrl) => {
-    return await fetch(targetUrl, {
+  const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+
+  try {
+    response = await fetch(url, {
       ...fetchOptions,
       headers: {
         "Content-Type": "application/json",
         ...fetchOptions.headers,
       },
     });
-  };
-
-  try {
-    const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
-    response = await tryFetch(url);
   } catch (error) {
-    // Direct request failed (e.g. CORS on localhost). Retry via local relative proxy path
-    if (API_BASE_URL) {
-      try {
-        response = await tryFetch(path);
-      } catch {
-        if ("fallback" in options) return options.fallback;
-        throw new Error("현재 서버에 연결할 수 없습니다.");
-      }
-    } else {
-      if ("fallback" in options) return options.fallback;
-      throw new Error("현재 서버에 연결할 수 없습니다.");
-    }
+    if ("fallback" in options) return options.fallback;
+    throw new Error("현재 서버에 연결할 수 없습니다.");
   }
 
   if (!response.ok) {
@@ -48,5 +37,6 @@ export async function apiClient(path, options = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : undefined;
 }
+
 
 
