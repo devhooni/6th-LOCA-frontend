@@ -17,22 +17,41 @@ const emptyForm = {
   description: "",
   imageUrl: "",
   tagIds: [],
+  visibility: "public",
+  source: "kakao",
 };
+
+function getPlaceKey(place) {
+  return String(place.placeId ?? place.id);
+}
+
+function isPrivatePlace(place) {
+  return place.visibility === "private" || place.source === "user";
+}
 
 export function AdminPlacesClient({ initialPlaces, tags }) {
   const [places, setPlaces] = useState(initialPlaces);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState("");
+  const [filter, setFilter] = useState("all");
 
   const selectedTagNames = form.tagIds;
 
   const submit = async () => {
+    if (pendingAction) return;
+    if (!form.name.trim()) {
+      setMessage("장소 이름을 입력해주세요.");
+      return;
+    }
+
+    setPendingAction("submit");
     try {
       if (editingId) {
         const updated = await updatePlace(editingId, form);
         setPlaces((current) =>
-          current.map((place) => (place.id === editingId ? updated : place)),
+          current.map((place) => (getPlaceKey(place) === editingId ? updated : place)),
         );
         setEditingId(null);
       } else {
@@ -42,50 +61,57 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
       setForm(emptyForm);
       setMessage("저장되었습니다.");
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "요청 처리 중 문제가 발생했습니다.",
-      );
+      setMessage(error instanceof Error ? error.message : "요청 처리 중 문제가 발생했습니다.");
+    } finally {
+      setPendingAction("");
     }
   };
 
   const startEdit = (place) => {
-    setEditingId(place.id);
+    const privatePlace = isPrivatePlace(place);
+    setEditingId(getPlaceKey(place));
     setForm({
       kakaoPlaceId: place.kakaoPlaceId ?? "",
-      name: place.name,
-      category: place.category,
-      address: place.address,
+      name: place.name ?? "",
+      category: place.category ?? "cafe",
+      address: place.address ?? "",
       lat: place.lat,
       lng: place.lng,
-      description: place.description,
-      imageUrl: place.imageUrl,
-      tagIds: place.tags,
+      description: place.description ?? "",
+      imageUrl: place.imageUrl ?? "",
+      tagIds: place.tags ?? [],
+      visibility: privatePlace ? "private" : "public",
+      source: privatePlace ? "user" : "kakao",
     });
   };
 
-  const remove = async (placeId) => {
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+  };
+
+  const remove = async (place) => {
     if (!window.confirm("삭제하시겠습니까?")) return;
+    if (pendingAction) return;
+
+    const placeId = getPlaceKey(place);
+    setPendingAction(`delete-${placeId}`);
     try {
-      await deletePlace(placeId);
-      setPlaces((current) => current.filter((place) => place.id !== placeId));
+      await deletePlace(placeId, place);
+      setPlaces((current) => current.filter((item) => getPlaceKey(item) !== placeId));
+      if (editingId === placeId) cancelEdit();
       setMessage("삭제되었습니다.");
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "요청 처리 중 문제가 발생했습니다.",
-      );
+      setMessage(error instanceof Error ? error.message : "요청 처리 중 문제가 발생했습니다.");
+    } finally {
+      setPendingAction("");
     }
   };
 
-  const [filter, setFilter] = useState("all");
-
-  const filteredPlaces = places.filter((p) => {
-    const isPrivate = p.visibility === "private" || p.source === "user";
-    if (filter === "public") return !isPrivate;
-    if (filter === "private") return isPrivate;
+  const filteredPlaces = places.filter((place) => {
+    const privatePlace = isPrivatePlace(place);
+    if (filter === "public") return !privatePlace;
+    if (filter === "private") return privatePlace;
     return true;
   });
 
@@ -102,24 +128,20 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
         <div className="grid gap-3 md:grid-cols-2">
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, kakaoPlaceId: event.target.value })}
             placeholder="kakaoPlaceId"
             value={form.kakaoPlaceId}
-            onChange={(event) =>
-              setForm({ ...form, kakaoPlaceId: event.target.value })
-            }
           />
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
             placeholder="name"
             value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
           />
           <select
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, category: event.target.value })}
             value={form.category}
-            onChange={(event) =>
-              setForm({ ...form, category: event.target.value })
-            }
           >
             <option value="cafe">cafe</option>
             <option value="food">food</option>
@@ -130,49 +152,43 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
           </select>
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, address: event.target.value })}
             placeholder="address"
             value={form.address}
-            onChange={(event) =>
-              setForm({ ...form, address: event.target.value })
-            }
           />
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, lat: Number(event.target.value) })}
             placeholder="lat"
             value={form.lat}
-            onChange={(event) =>
-              setForm({ ...form, lat: Number(event.target.value) })
-            }
           />
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm"
+            onChange={(event) => setForm({ ...form, lng: Number(event.target.value) })}
             placeholder="lng"
             value={form.lng}
-            onChange={(event) =>
-              setForm({ ...form, lng: Number(event.target.value) })
-            }
           />
           <input
             className="h-11 rounded-xl border border-[var(--border)] px-3 text-sm md:col-span-2"
+            onChange={(event) => setForm({ ...form, imageUrl: event.target.value })}
             placeholder="imageUrl"
             value={form.imageUrl}
-            onChange={(event) =>
-              setForm({ ...form, imageUrl: event.target.value })
-            }
           />
           <textarea
             className="h-24 rounded-xl border border-[var(--border)] p-3 text-sm md:col-span-2"
+            onChange={(event) => setForm({ ...form, description: event.target.value })}
             placeholder="description"
             value={form.description}
-            onChange={(event) =>
-              setForm({ ...form, description: event.target.value })
-            }
           />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {tags.map((tag) => (
             <button
-              className={`rounded-full px-3 py-2 text-xs font-bold ${selectedTagNames.includes(tag.name) ? "bg-[var(--brand)] text-white" : "bg-zinc-100 text-zinc-500"}`}
+              className={`rounded-full px-3 py-2 text-xs font-bold ${
+                selectedTagNames.includes(tag.name)
+                  ? "bg-[var(--brand)] text-white"
+                  : "bg-zinc-100 text-zinc-500"
+              }`}
               key={tag.id}
               onClick={() =>
                 setForm({
@@ -189,15 +205,11 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
           ))}
         </div>
         <div className="mt-4 flex gap-2">
-          <Button onClick={submit}>{editingId ? "수정 완료" : "등록"}</Button>
+          <Button disabled={pendingAction === "submit"} onClick={submit}>
+            {pendingAction === "submit" ? "처리 중" : editingId ? "수정 완료" : "등록"}
+          </Button>
           {editingId ? (
-            <Button
-              onClick={() => {
-                setEditingId(null);
-                setForm(emptyForm);
-              }}
-              variant="secondary"
-            >
+            <Button disabled={Boolean(pendingAction)} onClick={cancelEdit} variant="secondary">
               취소
             </Button>
           ) : null}
@@ -210,12 +222,14 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
           <div className="flex gap-1.5">
             {[
               ["all", "전체"],
-              ["public", "🌐 Public"],
-              ["private", "🔒 Private"],
+              ["public", "Public"],
+              ["private", "Private"],
             ].map(([key, label]) => (
               <button
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                  filter === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  filter === key
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
                 }`}
                 key={key}
                 onClick={() => setFilter(key)}
@@ -229,11 +243,14 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
 
         <div className="mt-4 space-y-3">
           {filteredPlaces.map((place) => {
-            const isPrivate = place.visibility === "private" || place.source === "user";
+            const privatePlace = isPrivatePlace(place);
+            const placeId = getPlaceKey(place);
+            const deleting = pendingAction === `delete-${placeId}`;
+
             return (
               <article
                 className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
-                key={place.id}
+                key={placeId}
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -241,17 +258,17 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
                       <h2 className="font-extrabold">{place.name}</h2>
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                          isPrivate ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
+                          privatePlace ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
                         }`}
                       >
-                        {isPrivate ? "🔒 Private" : "🌐 Public"}
+                        {privatePlace ? "Private" : "Public"}
                       </span>
                     </div>
                     <p className="mt-1 text-sm font-semibold text-zinc-500">
                       {place.categoryLabel} · {place.address}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {place.tags.map((tag) => (
+                      {(place.tags ?? []).map((tag) => (
                         <TagChip compact key={tag}>
                           {tag}
                         </TagChip>
@@ -262,11 +279,15 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={() => startEdit(place)} variant="secondary">
+                    <Button
+                      disabled={Boolean(pendingAction)}
+                      onClick={() => startEdit(place)}
+                      variant="secondary"
+                    >
                       수정
                     </Button>
-                    <Button onClick={() => remove(place.id)} variant="ghost">
-                      삭제
+                    <Button disabled={deleting} onClick={() => remove(place)} variant="ghost">
+                      {deleting ? "처리 중" : "삭제"}
                     </Button>
                   </div>
                 </div>
@@ -278,4 +299,3 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
     </div>
   );
 }
-

@@ -2,6 +2,16 @@ const API_BASE_URL =
   typeof import.meta !== "undefined" && import.meta.env
     ? import.meta.env.VITE_PUBLIC_API_BASE_URL || ""
     : "";
+const IS_DEV =
+  typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env.DEV
+    : false;
+
+function buildApiUrl(path) {
+  if (IS_DEV) return path;
+  if (!API_BASE_URL) return path;
+  return `${API_BASE_URL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
 
 export async function apiClient(path, options = {}) {
   const { fallback, ...fetchOptions } = options;
@@ -18,7 +28,7 @@ export async function apiClient(path, options = {}) {
   };
 
   try {
-    const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+    const url = buildApiUrl(path);
     response = await tryFetch(url);
   } catch (error) {
     try {

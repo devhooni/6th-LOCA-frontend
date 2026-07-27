@@ -191,7 +191,7 @@ export async function updatePlace(placeId, payload) {
     lng: Number(payload.lng) || 126.9236,
   };
 
-  const isPrivate = payload.visibility === "private";
+  const isPrivate = payload.visibility === "private" || payload.source === "user";
   const primaryEndpoint = isPrivate ? `/api/places/private/${placeId}` : `/api/admin/places/${placeId}`;
   const secondaryEndpoint = isPrivate ? `/api/admin/places/${placeId}` : `/api/places/private/${placeId}`;
 
@@ -210,11 +210,15 @@ export async function updatePlace(placeId, payload) {
   }
 }
 
-export async function deletePlace(placeId) {
+export async function deletePlace(placeId, payload = {}) {
+  const isPrivate = payload.visibility === "private" || payload.source === "user";
+  const primaryEndpoint = isPrivate ? `/api/places/private/${placeId}` : `/api/admin/places/${placeId}`;
+  const secondaryEndpoint = isPrivate ? `/api/admin/places/${placeId}` : `/api/places/private/${placeId}`;
+
   try {
-    await apiClient(`/api/admin/places/${placeId}`, { method: "DELETE" });
+    await apiClient(primaryEndpoint, { method: "DELETE" });
   } catch {
-    await apiClient(`/api/places/private/${placeId}`, { method: "DELETE" });
+    await apiClient(secondaryEndpoint, { method: "DELETE" });
   }
 }
 
