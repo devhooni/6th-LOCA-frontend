@@ -13,8 +13,12 @@ export function Button({
   variant = "primary",
   className = "",
   onClick,
+  disabled = false,
+  ...props
 }) {
-  const classes = `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold transition ${variants[variant]} ${className}`;
+  const classes = `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold transition ${variants[variant]} ${
+    disabled ? "cursor-not-allowed opacity-60" : ""
+  } ${className}`;
 
   if (href) {
     return (
@@ -25,7 +29,7 @@ export function Button({
   }
 
   return (
-    <button className={classes} onClick={onClick} type="button">
+    <button className={classes} disabled={disabled} onClick={onClick} type="button" {...props}>
       {children}
     </button>
   );

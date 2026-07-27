@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { KakaoMap } from "@/src/components/map/KakaoMap";
@@ -16,6 +16,8 @@ export function PlaceNewClient() {
   const [lat, setLat] = useState(defaultLocation.lat);
   const [lng, setLng] = useState(defaultLocation.lng);
   const [visibility, setVisibility] = useState("public");
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const handleMapClick = ({ lat: clickedLat, lng: clickedLng }) => {
     setLat(String(clickedLat));
@@ -23,6 +25,8 @@ export function PlaceNewClient() {
   };
 
   const save = async () => {
+    if (isSavingRef.current) return;
+
     if (!name.trim()) {
       window.alert("장소 이름을 입력해주세요.");
       return;
@@ -32,6 +36,9 @@ export function PlaceNewClient() {
       window.alert("추후 기능 출시 예정입니다.");
       return;
     }
+
+    isSavingRef.current = true;
+    setIsSaving(true);
 
     try {
       const created = await createPlace({
@@ -54,6 +61,9 @@ export function PlaceNewClient() {
       navigate(`/place/${created.id}`);
     } catch {
       window.alert("장소 저장 중 문제가 발생했습니다.");
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -179,8 +189,8 @@ export function PlaceNewClient() {
             </div>
           </div>
 
-          <Button className="mt-8 w-full" onClick={save}>
-            장소 저장
+          <Button className="mt-8 w-full" disabled={isSaving} onClick={save}>
+            {isSaving ? "저장 중" : "장소 저장"}
           </Button>
         </section>
       </div>
