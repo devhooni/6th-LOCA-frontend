@@ -80,6 +80,15 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
     }
   };
 
+  const [filter, setFilter] = useState("all");
+
+  const filteredPlaces = places.filter((p) => {
+    const isPrivate = p.visibility === "private" || p.source === "user";
+    if (filter === "public") return !isPrivate;
+    if (filter === "private") return isPrivate;
+    return true;
+  });
+
   return (
     <div className="w-full md:pl-8">
       <h1 className="text-2xl font-extrabold">장소 관리</h1>
@@ -195,42 +204,78 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
         </div>
       </section>
 
-      <section className="mt-5 space-y-3">
-        {places.map((place) => (
-          <article
-            className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
-            key={place.id}
-          >
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="font-extrabold">{place.name}</h2>
-                <p className="mt-1 text-sm font-semibold text-zinc-500">
-                  {place.categoryLabel} · {place.address}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {place.tags.map((tag) => (
-                    <TagChip compact key={tag}>
-                      {tag}
-                    </TagChip>
-                  ))}
+      <section className="mt-8">
+        <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
+          <h2 className="text-lg font-black">등록 장소 목록 ({filteredPlaces.length})</h2>
+          <div className="flex gap-1.5">
+            {[
+              ["all", "전체"],
+              ["public", "🌐 Public"],
+              ["private", "🔒 Private"],
+            ].map(([key, label]) => (
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  filter === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+                key={key}
+                onClick={() => setFilter(key)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {filteredPlaces.map((place) => {
+            const isPrivate = place.visibility === "private" || place.source === "user";
+            return (
+              <article
+                className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
+                key={place.id}
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-extrabold">{place.name}</h2>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                          isPrivate ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {isPrivate ? "🔒 Private" : "🌐 Public"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold text-zinc-500">
+                      {place.categoryLabel} · {place.address}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {place.tags.map((tag) => (
+                        <TagChip compact key={tag}>
+                          {tag}
+                        </TagChip>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-zinc-400">
+                      위도 {place.lat} · 경도 {place.lng} · 방문 {place.visitCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => startEdit(place)} variant="secondary">
+                      수정
+                    </Button>
+                    <Button onClick={() => remove(place.id)} variant="ghost">
+                      삭제
+                    </Button>
+                  </div>
                 </div>
-                <p className="mt-2 text-xs font-bold text-zinc-400">
-                  평점 {place.averageRating ?? place.rating} · 방문{" "}
-                  {place.visitCount ?? 0} · 리뷰 {place.reviewCount}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => startEdit(place)} variant="secondary">
-                  수정
-                </Button>
-                <Button onClick={() => remove(place.id)} variant="ghost">
-                  삭제
-                </Button>
-              </div>
-            </div>
-          </article>
-        ))}
+              </article>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
 }
+

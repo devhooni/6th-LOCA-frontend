@@ -3,6 +3,8 @@ import { Icon } from "./Icon";
 import { TagChip } from "./TagChip";
 
 export function PlaceCard({ place, compact = false }) {
+  const isPrivate = place.visibility === "private" || place.source === "user";
+
   return (
     <Link
       className="wire-card interactive block overflow-hidden focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
@@ -10,6 +12,15 @@ export function PlaceCard({ place, compact = false }) {
     >
       <div className={`relative ${compact ? "h-28" : "h-40"}`}>
         <img alt="" className="h-full w-full object-cover" src={place.imageUrl} />
+        <span
+          className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black shadow-sm ${
+            isPrivate
+              ? "bg-zinc-900 text-white"
+              : "bg-white/95 text-emerald-800 backdrop-blur-sm"
+          }`}
+        >
+          {isPrivate ? "🔒 Private" : "🌐 Public"}
+        </span>
         <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-black">
           <Icon className="h-4 w-4" name="bookmark" />
         </span>
@@ -37,3 +48,4 @@ export function PlaceCard({ place, compact = false }) {
     </Link>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadKakaoMapSdk } from "@/src/lib/kakaoMap";
 
-export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick }) {
   const mapRef = useRef(null);
   const kakaoInstanceRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -29,6 +29,14 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
           );
           const map = new kakao.maps.Map(mapRef.current, { center, level: 4 });
           mapInstanceRef.current = map;
+
+          kakao.maps.event.addListener(map, "click", (mouseEvent) => {
+            const latLng = mouseEvent.latLng;
+            onMapClick?.({
+              lat: Number(latLng.getLat().toFixed(6)),
+              lng: Number(latLng.getLng().toFixed(6)),
+            });
+          });
         }
         setLoadError("");
       })
@@ -40,7 +48,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
     return () => {
       cancelled = true;
     };
-  }, [appKey]);
+  }, [appKey, onMapClick]);
 
   // 2. 마커 생성 및 업데이트
   useEffect(() => {
@@ -85,7 +93,17 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
 
   if (!appKey || loadError) {
     return (
-      <div className="relative h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100">
+      <div
+        className="relative h-full min-h-[560px] cursor-crosshair overflow-hidden rounded-2xl bg-zinc-100"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          const y = (e.clientY - rect.top) / rect.height;
+          const lat = Number((37.565 - y * 0.02).toFixed(6));
+          const lng = Number((126.915 + x * 0.02).toFixed(6));
+          onMapClick?.({ lat, lng });
+        }}
+      >
         <div className="absolute inset-0 opacity-70">
           <div className="absolute left-[8%] top-[18%] h-24 w-44 rounded-lg bg-zinc-200" />
           <div className="absolute right-[12%] top-[12%] h-32 w-52 rounded-lg bg-zinc-200" />
@@ -99,7 +117,10 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
               selectedPlace?.id === place.id ? "ui-dark" : "bg-white text-black"
             }`}
             key={place.id}
-            onClick={() => onSelectPlace?.(place)}
+            onClick={(evt) => {
+              evt.stopPropagation();
+              onSelectPlace?.(place);
+            }}
             style={{ left: `${18 + (index % 3) * 24}%`, top: `${22 + Math.floor(index / 3) * 28}%` }}
             type="button"
           >
@@ -107,9 +128,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
           </button>
         ))}
         <div className="absolute bottom-5 left-5 max-w-[90%] rounded-lg bg-white px-4 py-3 text-sm font-semibold text-zinc-600 shadow-sm">
-          {!appKey
-            ? "Kakao Map API 키(VITE_PUBLIC_KAKAO_MAP_KEY)가 설정되지 않아 와이어프레임 지도로 표시 중입니다."
-            : loadError}
+          💡 지도를 클릭하면 위도와 경도가 자동 선택됩니다.
         </div>
       </div>
     );
@@ -117,3 +136,4 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
 
   return <div ref={mapRef} className="h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100" />;
 }
+

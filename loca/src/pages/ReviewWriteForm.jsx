@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/src/components/common/Button";
 import { Icon } from "@/src/components/common/Icon";
 import { AppShell } from "@/src/components/layout/AppShell";
-import { getPlaceById } from "@/src/services/placeService";
+import { getPlaces, getPlaceById } from "@/src/services/placeService";
 import { createReview } from "@/src/services/reviewService";
 
 const companions = ["혼자", "친구와", "데이트", "가족"];
@@ -12,8 +12,10 @@ const visibilityOptions = ["전체 공개", "나만 보기"];
 export function ReviewWriteForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const placeId = searchParams.get("placeId") ?? "object-yeonnam";
+  const initialPlaceId = searchParams.get("placeId") ?? "101";
   const [place, setPlace] = useState(null);
+  const [allPlaces, setAllPlaces] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [companion, setCompanion] = useState("혼자");
   const [visibility, setVisibility] = useState("전체 공개");
   const [title, setTitle] = useState("");
@@ -21,8 +23,11 @@ export function ReviewWriteForm() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getPlaceById(placeId).then(setPlace);
-  }, [placeId]);
+    getPlaces().then((data) => {
+      if (data?.length) setAllPlaces(data);
+    });
+    getPlaceById(initialPlaceId).then(setPlace);
+  }, [initialPlaceId]);
 
   const complete = async () => {
     if (!title.trim() || !review.trim()) {
@@ -32,7 +37,7 @@ export function ReviewWriteForm() {
 
     setSaving(true);
     try {
-      const targetPlaceId = place?.placeId || (!isNaN(Number(placeId)) ? Number(placeId) : 101);
+      const targetPlaceId = place?.placeId || (!isNaN(Number(initialPlaceId)) ? Number(initialPlaceId) : 101);
       await createReview({
         placeId: targetPlaceId,
         placeName: place?.name,
@@ -81,16 +86,65 @@ export function ReviewWriteForm() {
         <section className="wire-panel p-6 lg:p-8">
           <h2 className="text-xl font-black">기록 정보</h2>
 
-          <label className="mt-6 block text-sm font-bold" htmlFor="record-place">
-            장소
-            <input
-              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
-              id="record-place"
-              placeholder="장소를 검색하거나 선택하세요"
-              value={place?.name ?? "장소를 불러오는 중"}
-              readOnly
-            />
-          </label>
+          <div className="relative mt-6">
+            <label className="block text-sm font-bold" htmlFor="record-place-trigger">
+              장소 선택
+            </label>
+            <div
+              className="mt-2 flex h-12 w-full cursor-pointer items-center justify-between rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-bold transition-all hover:border-zinc-500"
+              id="record-place-trigger"
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+            >
+              <div className="flex items-center gap-2 truncate">
+                <span>{place?.name ?? "장소를 선택해주세요"}</span>
+                {place ? (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      place.visibility === "private" || place.source === "user"
+                        ? "bg-zinc-900 text-white"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    {place.visibility === "private" || place.source === "user" ? "🔒 Private" : "🌐 Public"}
+                  </span>
+                ) : null}
+              </div>
+              <span className="text-xs text-zinc-400">{isDropdownOpen ? "▲" : "▼"}</span>
+            </div>
+
+            {isDropdownOpen ? (
+              <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-2 shadow-xl">
+                <p className="px-3 py-1.5 text-xs font-bold text-zinc-400">등록된 장소 목록 ({allPlaces.length})</p>
+                {allPlaces.map((item) => {
+                  const isItemPrivate = item.visibility === "private" || item.source === "user";
+                  return (
+                    <button
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-zinc-100"
+                      key={item.id}
+                      onClick={() => {
+                        setPlace(item);
+                        setIsDropdownOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black">{item.name}</p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-zinc-400">{item.address}</p>
+                      </div>
+                      <span
+                        className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          isItemPrivate ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {isItemPrivate ? "🔒 Private" : "🌐 Public"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
 
           <label className="mt-5 block text-sm font-bold" htmlFor="record-title">
             제목
