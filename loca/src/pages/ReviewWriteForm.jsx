@@ -32,8 +32,9 @@ export function ReviewWriteForm() {
 
     setSaving(true);
     try {
+      const targetPlaceId = place?.placeId || (!isNaN(Number(placeId)) ? Number(placeId) : 101);
       await createReview({
-        placeId,
+        placeId: targetPlaceId,
         placeName: place?.name,
         title,
         review,

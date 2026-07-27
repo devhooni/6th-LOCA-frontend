@@ -3,18 +3,30 @@ import { mockTags } from "@/src/mocks/places";
 
 export async function getTags() {
   try {
-    return await apiClient("/api/tags", { fallback: mockTags });
+    const res = await apiClient("/api/tags", { fallback: mockTags });
+    if (!Array.isArray(res)) return mockTags;
+    return res.map((tag) => ({
+      ...tag,
+      id: tag.tagId ?? tag.id,
+      name: tag.name,
+    }));
   } catch {
     return mockTags;
   }
 }
 
 export async function createTag(payload) {
-  return apiClient("/api/admin/tags", {
+  const res = await apiClient("/api/admin/tags", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ name: payload.name }),
     fallback: { id: `mock-tag-${Date.now()}`, name: payload.name },
   });
+  return {
+    ...res,
+    id: res.tagId ?? res.id ?? `tag-${Date.now()}`,
+    tagId: res.tagId ?? res.id,
+    name: res.name,
+  };
 }
 
 export async function deleteTag(tagId) {
@@ -23,3 +35,4 @@ export async function deleteTag(tagId) {
     fallback: undefined,
   });
 }
+

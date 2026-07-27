@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { PlaceCard } from "@/src/components/common/PlaceCard";
 import { ProgressCard } from "@/src/components/common/ProgressCard";
 import { SegmentTabs } from "@/src/components/common/SegmentTabs";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { mockPlaces } from "@/src/mocks/places";
 import { mockReviews } from "@/src/mocks/reviews";
+import { getPlaces } from "@/src/services/placeService";
+import { getReviewsMe } from "@/src/services/reviewService";
 
 function getInsight(count) {
   if (count < 4) return "아직 취향의 윤곽을 그리고 있어요.";
@@ -12,7 +15,17 @@ function getInsight(count) {
 }
 
 export default function ForYouPage() {
-  const isUnlocked = mockReviews.length >= 10;
+  const [places, setPlaces] = useState(mockPlaces);
+  const [reviews, setReviews] = useState(mockReviews);
+
+  useEffect(() => {
+    Promise.all([getPlaces(), getReviewsMe()]).then(([placesData, reviewsData]) => {
+      if (placesData?.length) setPlaces(placesData);
+      if (reviewsData?.length) setReviews(reviewsData);
+    });
+  }, []);
+
+  const isUnlocked = reviews.length >= 10;
 
   return (
     <AppShell flush>
@@ -23,20 +36,20 @@ export default function ForYouPage() {
             진우님을 위한 추천
           </h1>
           <p className="mt-2 text-sm font-semibold text-zinc-500">
-            {getInsight(mockReviews.length)}
+            {getInsight(reviews.length)}
           </p>
         </div>
         {isUnlocked ? (
           <div className="mt-5 space-y-4 md:grid md:grid-cols-2 md:gap-5 md:space-y-0 lg:grid-cols-3">
-            {mockPlaces.slice(0, 4).map((place) => (
+            {places.slice(0, 4).map((place) => (
               <PlaceCard key={place.id} place={place} />
             ))}
           </div>
         ) : (
           <div className="mt-5 md:grid md:grid-cols-[360px_1fr] md:gap-6">
-            <ProgressCard current={mockReviews.length} target={10} />
+            <ProgressCard current={reviews.length} target={10} />
             <div className="mt-6 space-y-4 md:mt-0 md:grid md:grid-cols-2 md:gap-5 md:space-y-0">
-              {mockPlaces.slice(0, 4).map((place) => (
+              {places.slice(0, 4).map((place) => (
                 <PlaceCard key={place.id} place={place} />
               ))}
             </div>
@@ -46,3 +59,4 @@ export default function ForYouPage() {
     </AppShell>
   );
 }
+

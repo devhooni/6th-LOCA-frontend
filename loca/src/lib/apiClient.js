@@ -1,6 +1,6 @@
 const API_BASE_URL =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_API_BASE_URL) ||
-  "http://192.168.164.130:8080";
+  "https://sixth-loca-backend-3-12qz.onrender.com";
 
 export async function apiClient(path, options = {}) {
   if (!API_BASE_URL) {
@@ -9,21 +9,23 @@ export async function apiClient(path, options = {}) {
   }
 
   let response;
+  const { fallback, ...fetchOptions } = options;
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers: {
         "Content-Type": "application/json",
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
-  } catch {
+  } catch (error) {
     if ("fallback" in options) return options.fallback;
-    throw new Error("현재 서버에 연결할 수 없습니다. Mock 데이터로 표시합니다.");
+    throw new Error("현재 서버에 연결할 수 없습니다.");
   }
 
   if (!response.ok) {
+    if ("fallback" in options) return options.fallback;
     const message = response.status === 409 ? "이미 등록된 데이터입니다." : "요청 처리 중 문제가 발생했습니다.";
     throw new Error(message);
   }
@@ -32,5 +34,7 @@ export async function apiClient(path, options = {}) {
     return undefined;
   }
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : undefined;
 }
+

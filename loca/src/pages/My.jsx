@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
@@ -5,6 +6,8 @@ import { AppShell } from "@/src/components/layout/AppShell";
 import { mockPlaces } from "@/src/mocks/places";
 import { mockReviews } from "@/src/mocks/reviews";
 import { mockUser } from "@/src/mocks/user";
+import { getPlaces, getPrivatePlaces } from "@/src/services/placeService";
+import { getReviewsMe } from "@/src/services/reviewService";
 
 const tabs = ["최근 기록", "기록", "나만의 장소", "임시저장"];
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
@@ -99,10 +102,23 @@ function ActivityCalendar({ calendar }) {
 }
 
 export default function MyPage() {
-  const cards = mockReviews.slice(0, 4).map((review) => {
-    const place = mockPlaces.find((item) => item.id === review.placeId) ?? mockPlaces[0];
+  const [reviews, setReviews] = useState(mockReviews);
+  const [allPlaces, setAllPlaces] = useState(mockPlaces);
+  const [privatePlaces, setPrivatePlaces] = useState([]);
+
+  useEffect(() => {
+    Promise.all([getReviewsMe(), getPlaces(), getPrivatePlaces()]).then(([reviewsData, placesData, privateData]) => {
+      if (reviewsData) setReviews(reviewsData);
+      if (placesData) setAllPlaces(placesData);
+      if (privateData) setPrivatePlaces(privateData);
+    });
+  }, []);
+
+  const cards = reviews.slice(0, 4).map((review) => {
+    const place = allPlaces.find((item) => String(item.id) === String(review.placeId)) ?? allPlaces[0];
     return { review, place };
   });
+
 
   return (
     <AppShell>
@@ -164,12 +180,12 @@ export default function MyPage() {
           <div className="mt-7 grid gap-4 lg:grid-cols-3">
             <div className="rounded-lg bg-white p-5">
               <p className="text-sm font-black text-zinc-500">기록</p>
-              <p className="mt-3 text-3xl font-black">{mockUser.recordCount}개</p>
+              <p className="mt-3 text-3xl font-black">{reviews.length}개</p>
               <p className="mt-2 text-xs font-semibold text-zinc-400">방문 후 남긴 리뷰/기록</p>
             </div>
             <div className="rounded-lg bg-white p-5">
               <p className="text-sm font-black text-zinc-500">나만의 장소</p>
-              <p className="mt-3 text-3xl font-black">{mockUser.privatePlaceCount}개</p>
+              <p className="mt-3 text-3xl font-black">{privatePlaces.length || mockUser.privatePlaceCount}개</p>
               <p className="mt-2 text-xs font-semibold text-zinc-400">지도에 직접 추가한 장소</p>
             </div>
             <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-5">
