@@ -9,7 +9,7 @@ import { mockUser } from "@/src/mocks/user";
 import { getPlaces, getPrivatePlaces } from "@/src/services/placeService";
 import { getReviewsMe } from "@/src/services/reviewService";
 
-const tabs = ["최근 기록", "기록", "나만의 장소", "임시저장"];
+const tabs = ["기록", "장소들", "임시저장"];
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 
 function getActivityCalendarDays(calendar) {
@@ -104,13 +104,14 @@ function ActivityCalendar({ calendar }) {
 export default function MyPage() {
   const [reviews, setReviews] = useState(mockReviews);
   const [allPlaces, setAllPlaces] = useState(mockPlaces);
-  const [privatePlaces, setPrivatePlaces] = useState([]);
+  const [userPlaces, setUserPlaces] = useState([]);
+  const [activeTab, setActiveTab] = useState("기록");
 
   useEffect(() => {
     Promise.all([getReviewsMe(), getPlaces(), getPrivatePlaces()]).then(([reviewsData, placesData, privateData]) => {
       if (reviewsData) setReviews(reviewsData);
       if (placesData) setAllPlaces(placesData);
-      if (privateData) setPrivatePlaces(privateData);
+      if (privateData) setUserPlaces(privateData);
     });
   }, []);
 
@@ -119,6 +120,10 @@ export default function MyPage() {
     return { review, place };
   });
 
+  const placeCards = userPlaces.length
+    ? userPlaces
+    : allPlaces.filter((place) => place.createdByUser || place.visibility === "private" || place.source === "user");
+  const placeCount = Math.max(placeCards.length, mockUser.privatePlaceCount);
 
   return (
     <AppShell>
@@ -184,9 +189,9 @@ export default function MyPage() {
               <p className="mt-2 text-xs font-semibold text-zinc-400">방문 후 남긴 리뷰/기록</p>
             </div>
             <div className="rounded-lg bg-white p-5">
-              <p className="text-sm font-black text-zinc-500">나만의 장소</p>
-              <p className="mt-3 text-3xl font-black">{privatePlaces.length || mockUser.privatePlaceCount}개</p>
-              <p className="mt-2 text-xs font-semibold text-zinc-400">지도에 직접 추가한 장소</p>
+              <p className="text-sm font-black text-zinc-500">장소들</p>
+              <p className="mt-3 text-3xl font-black">{placeCount}개</p>
+              <p className="mt-2 text-xs font-semibold text-zinc-400">장소 추가에서 등록한 장소</p>
             </div>
             <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-5">
               <p className="text-sm font-black text-zinc-500">임시저장</p>
@@ -201,12 +206,13 @@ export default function MyPage() {
 
       <section className="mt-10">
         <div className="flex border-b border-[var(--border)]">
-          {tabs.map((tab, index) => (
+          {tabs.map((tab) => (
             <button
               className={`h-12 px-5 text-sm font-black ${
-                index === 0 ? "border-b-2 border-black text-black" : "text-zinc-400"
+                activeTab === tab ? "border-b-2 border-black text-black" : "text-zinc-400"
               }`}
               key={tab}
+              onClick={() => setActiveTab(tab)}
               type="button"
             >
               {tab}
@@ -214,21 +220,54 @@ export default function MyPage() {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map(({ review, place }) => (
-            <Link className="wire-card interactive overflow-hidden" key={review.id} to={`/place/${place.id}`}>
-              <img alt="" className="h-36 w-full object-cover" src={review.images[0] ?? place.imageUrl} />
-              <div className="p-4">
-                <h3 className="line-clamp-1 text-sm font-black">{review.title}</h3>
-                <p className="mt-1 text-xs font-semibold text-zinc-500">{place.name}</p>
-                <div className="mt-3 flex gap-1.5">
-                  <TagChip compact>{place.categoryLabel}</TagChip>
-                  <TagChip compact>{review.mood}</TagChip>
+        {activeTab === "기록" && (
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {cards.map(({ review, place }) => (
+              <Link className="wire-card interactive overflow-hidden" key={review.id} to={`/place/${place.id}`}>
+                <img alt="" className="h-36 w-full object-cover" src={review.images[0] ?? place.imageUrl} />
+                <div className="p-4">
+                  <h3 className="line-clamp-1 text-sm font-black">{review.title}</h3>
+                  <p className="mt-1 text-xs font-semibold text-zinc-500">{place.name}</p>
+                  <div className="mt-3 flex gap-1.5">
+                    <TagChip compact>{place.categoryLabel}</TagChip>
+                    <TagChip compact>{review.mood}</TagChip>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "장소들" && (
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {placeCards.map((place) => (
+              <Link className="wire-card interactive overflow-hidden" key={place.id} to={`/place/${place.id}`}>
+                <img alt="" className="h-36 w-full object-cover" src={place.imageUrl} />
+                <div className="p-4">
+                  <h3 className="line-clamp-1 text-sm font-black">{place.name}</h3>
+                  <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">{place.address}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <TagChip compact>{place.categoryLabel}</TagChip>
+                    {(place.tags ?? []).slice(0, 1).map((tag) => (
+                      <TagChip compact key={tag}>
+                        {tag}
+                      </TagChip>
+                    ))}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "임시저장" && (
+          <div className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8">
+            <p className="text-sm font-black">작성 중인 기록 {mockUser.draftCount}개</p>
+            <p className="mt-2 text-sm font-semibold text-zinc-500">
+              임시저장한 기록은 저장 기능 연동 후 이 영역에서 이어서 작성할 수 있게 정리할 예정입니다.
+            </p>
+          </div>
+        )}
       </section>
     </AppShell>
   );
