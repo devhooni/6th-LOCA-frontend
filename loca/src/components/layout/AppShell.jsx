@@ -1,12 +1,17 @@
 import { BottomNav } from "./BottomNav";
 
-export function AppShell({ children, showNav = true, flush = false }) {
+/**
+ * AppShell — Mobile-first page wrapper
+ * - showNav: false hides BottomNav (login, onboarding)
+ * - bare: removes bottom padding (full-screen pages like map)
+ */
+export function AppShell({ children, showNav = true, bare = false }) {
   return (
-    <div className="app-shell">
-      {showNav ? <BottomNav /> : null}
-      <main className={`app-content ${flush ? "app-content--flush" : ""}`}>
+    <div className="mobile-shell">
+      <div className={bare ? "page-root--bare" : "page-root"}>
         {children}
-      </main>
+      </div>
+      {showNav && <BottomNav />}
     </div>
   );
 }
