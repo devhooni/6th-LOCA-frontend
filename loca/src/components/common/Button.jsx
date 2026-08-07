@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 
-/**
- * Button — Reusable button with primary / secondary / ghost variants
- */
+const variants = {
+  primary: "ui-dark hover:bg-[var(--primary-hover)]",
+  secondary:
+    "border border-[var(--border)] bg-white text-[var(--text)] hover:bg-zinc-50",
+  ghost: "bg-transparent text-[var(--text-secondary)] hover:bg-zinc-100",
+};
+
 export function Button({
   children,
   href,
@@ -12,12 +16,9 @@ export function Button({
   disabled = false,
   ...props
 }) {
-  const variantClass =
-    variant === "primary" ? "btn-primary" :
-    variant === "secondary" ? "btn-secondary" :
-    "btn-ghost";
-
-  const classes = `btn ${variantClass} ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`;
+  const classes = `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold transition ${variants[variant]} ${
+    disabled ? "cursor-not-allowed opacity-60" : ""
+  } ${className}`;
 
   if (href) {
     return (
@@ -28,13 +29,7 @@ export function Button({
   }
 
   return (
-    <button
-      className={classes}
-      disabled={disabled}
-      onClick={onClick}
-      type="button"
-      {...props}
-    >
+    <button className={classes} disabled={disabled} onClick={onClick} type="button" {...props}>
       {children}
     </button>
   );

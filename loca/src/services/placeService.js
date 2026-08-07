@@ -12,45 +12,6 @@ const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=900&q=80",
 ];
 
-const USER_CREATED_PLACES_KEY = "loca:user-created-places";
-
-function readUserCreatedPlaces() {
-  if (typeof window === "undefined" || !window.localStorage) return [];
-
-  try {
-    const rawPlaces = window.localStorage.getItem(USER_CREATED_PLACES_KEY);
-    const parsedPlaces = rawPlaces ? JSON.parse(rawPlaces) : [];
-    return Array.isArray(parsedPlaces) ? parsedPlaces.map((place) => formatPlace(place, true)) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeUserCreatedPlace(place) {
-  if (typeof window === "undefined" || !window.localStorage || !place) return;
-
-  const formattedPlace = formatPlace({ ...place, createdByUser: true }, place.visibility === "private");
-  const currentPlaces = readUserCreatedPlaces();
-  const nextPlaces = [
-    formattedPlace,
-    ...currentPlaces.filter((item) => String(item.id) !== String(formattedPlace.id)),
-  ];
-
-  window.localStorage.setItem(USER_CREATED_PLACES_KEY, JSON.stringify(nextPlaces));
-}
-
-export function getUserCreatedPlaces() {
-  return readUserCreatedPlaces();
-}
-
-function getFallbackPlaces() {
-  const userCreatedPlaces = getUserCreatedPlaces();
-  return [
-    ...userCreatedPlaces,
-    ...mockPlaces.filter((place) => !userCreatedPlaces.some((item) => String(item.id) === String(place.id))),
-  ];
-}
-
 function getFallbackImage(id, isPrivate) {
   if (isPrivate) {
     return "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=900&q=80";
@@ -101,21 +62,19 @@ export function formatPlace(raw, isPrivate = false) {
 }
 
 export async function getPlaces() {
-  const fallbackPlaces = getFallbackPlaces();
-
   try {
     const [publicData, privateData] = await Promise.all([
-      apiClient("/api/places/public", { fallback: mockPlaces.filter((p) => p.visibility !== "private") }),
-      apiClient("/api/places/private", { fallback: mockPlaces.filter((p) => p.visibility === "private") }),
+      apiClient("/api/places/public"),
+      apiClient("/api/places/private"),
     ]);
 
     const formattedPublic = Array.isArray(publicData) ? publicData.map((p) => formatPlace(p, false)) : [];
     const formattedPrivate = Array.isArray(privateData) ? privateData.map((p) => formatPlace(p, true)) : [];
-    const combined = [...getUserCreatedPlaces(), ...formattedPublic, ...formattedPrivate];
+    const combined = [...formattedPublic, ...formattedPrivate];
 
     return combined;
   } catch {
-    return fallbackPlaces;
+    return mockPlaces;
   }
 }
 
@@ -129,22 +88,15 @@ export async function getPublicPlaces() {
 }
 
 export async function getPrivatePlaces() {
-  const userCreatedPlaces = getUserCreatedPlaces();
-
   try {
-    const data = await apiClient("/api/places/private", {
-      fallback: mockPlaces.filter((p) => p.visibility === "private"),
-    });
-    const privatePlaces = Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
-    return [...userCreatedPlaces, ...privatePlaces];
+    const data = await apiClient("/api/places/private");
+    return Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
   } catch {
-    return [...userCreatedPlaces, ...mockPlaces.filter((p) => p.visibility === "private")];
+    return mockPlaces.filter((p) => p.visibility === "private");
   }
 }
 
 export async function getPlaceById(placeId) {
-  const fallbackPlaces = getFallbackPlaces();
-
   try {
     const isNum = !isNaN(Number(placeId));
     if (isNum) {
@@ -158,16 +110,14 @@ export async function getPlaceById(placeId) {
         if (privateRes) return formatPlace(privateRes, true);
       } catch {}
     }
-    const fallback = fallbackPlaces.find((p) => String(p.id) === String(placeId)) ?? fallbackPlaces[0];
+    const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
     return fallback;
   } catch {
-    return fallbackPlaces.find((p) => String(p.id) === String(placeId)) ?? fallbackPlaces[0];
+    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   }
 }
 
 export async function getPublicPlaceById(placeId) {
-  const fallbackPlaces = getFallbackPlaces();
-
   try {
     const isNum = !isNaN(Number(placeId));
     if (isNum) {
@@ -176,7 +126,7 @@ export async function getPublicPlaceById(placeId) {
     }
     return getPlaceById(placeId);
   } catch {
-    return fallbackPlaces.find((p) => String(p.id) === String(placeId)) ?? fallbackPlaces[0];
+    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
   }
 }
 
@@ -209,18 +159,6 @@ export async function getPlaceReviews(placeId) {
 export async function createPlace(payload) {
   const isPrivate = payload.visibility === "private";
   const endpoint = isPrivate ? "/api/places/private" : "/api/admin/places";
-  const localId = `local-place-${Date.now()}`;
-  const fallbackPlace = formatPlace(
-    {
-      ...payload,
-      id: localId,
-      placeId: localId,
-      createdByUser: true,
-      visitCount: 0,
-      reviewCount: 0,
-    },
-    isPrivate,
-  );
 
   const body = isPrivate
     ? {
@@ -240,12 +178,9 @@ export async function createPlace(payload) {
   const res = await apiClient(endpoint, {
     method: "POST",
     body: JSON.stringify(body),
-    fallback: fallbackPlace,
   });
 
-  const createdPlace = formatPlace({ ...payload, ...res, createdByUser: true }, isPrivate);
-  writeUserCreatedPlace(createdPlace);
-  return createdPlace;
+  return formatPlace({ ...payload, ...res }, isPrivate);
 }
 
 export async function updatePlace(placeId, payload) {

@@ -1,14 +1,13 @@
-/**
- * TagChip — Minimal pill-style chip for mood/category tags
- */
-export function TagChip({ children, active = false, compact = false, onClick }) {
+export function TagChip({ children, active = false, compact = false }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`chip tap-target ${active ? "chip--active" : ""} ${compact ? "chip--sm" : ""}`}
+    <span
+      className={`inline-flex items-center rounded-full border font-semibold ${
+        compact ? "px-2.5 py-1 text-[11px]" : "min-h-10 px-4 py-2 text-sm"
+      } ${
+        active ? "ui-dark" : "border-[var(--border)] bg-white text-zinc-600"
+      }`}
     >
       {children}
-    </button>
+    </span>
   );
 }

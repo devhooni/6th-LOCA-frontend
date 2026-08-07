@@ -189,8 +189,8 @@ export function PlaceNewClient() {
             </div>
           </div>
 
-          <Button className="mt-8 w-full" onClick={save}>
-            장소 저장
+          <Button className="mt-8 w-full" disabled={isSaving} onClick={save}>
+            {isSaving ? "저장 중" : "장소 저장"}
           </Button>
         </section>
       </div>
