@@ -84,20 +84,13 @@ export function PlaceNewClient() {
         </button>
       </section>
 
-      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <section className="wire-panel bg-white p-5 lg:p-6">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-black">지도 위치</h2>
-              <p className="mt-1 text-sm font-semibold text-zinc-500">
-                지도에서 지점을 선택하면 좌표가 자동으로 반영됩니다.
-              </p>
-            </div>
-            <span className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-500">
-              {lat}, {lng}
-            </span>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr]">
+        <section className="wire-panel overflow-hidden bg-zinc-50 p-2">
+          <div className="mb-2 flex items-center justify-between px-3 pt-2">
+            <span className="text-xs font-black text-zinc-500">📍 지도 클릭으로 위도/경도 자동 선택</span>
+            <span className="text-xs font-bold text-zinc-400">위도: {lat} | 경도: {lng}</span>
           </div>
-          <div className="h-[440px] w-full overflow-hidden rounded-xl border border-[var(--border)] lg:h-[560px]">
+          <div className="h-[480px] w-full">
             <KakaoMap
               onMapClick={handleMapClick}
               places={[{ id: "preview", name: name || "선택한 지점", lat: Number(lat), lng: Number(lng) }]}
@@ -106,7 +99,7 @@ export function PlaceNewClient() {
           </div>
         </section>
 
-        <section className="wire-panel bg-white p-6 lg:p-7">
+        <section className="wire-panel p-6 lg:p-8">
           <h2 className="text-xl font-black">장소 정보</h2>
 
           <label className="mt-6 block text-sm font-bold" htmlFor="place-name">
@@ -155,33 +148,29 @@ export function PlaceNewClient() {
           </div>
 
           <div className="mt-6">
-            <p className="text-sm font-bold">공개 설정</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <p className="text-sm font-bold">공개 설정 (Public / Private 구분)</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <button
-                className={`min-h-[104px] rounded-xl border p-4 text-left transition-all ${
+                className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
                   visibility === "public"
-                    ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
+                    ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-600"
                     : "border-zinc-200 bg-white hover:bg-zinc-50"
                 }`}
                 onClick={() => setVisibility("public")}
                 type="button"
               >
-                <span className="block text-sm font-black">
-                  전체 공개
+                <span className="flex items-center gap-1.5 text-sm font-black text-emerald-900">
+                  🌐 전체 공개 (Public)
                 </span>
-                <span
-                  className={`mt-2 block text-xs font-semibold leading-5 ${
-                    visibility === "public" ? "text-zinc-200" : "text-zinc-500"
-                  }`}
-                >
+                <span className="text-xs font-semibold text-zinc-500">
                   모든 사용자가 볼 수 있는 공개 장소로 추가됩니다.
                 </span>
               </button>
 
               <button
-                className={`min-h-[104px] rounded-xl border p-4 text-left transition-all ${
+                className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
                   visibility === "private"
-                    ? "border-zinc-900 bg-zinc-900 text-white shadow-sm"
+                    ? "border-purple-600 bg-purple-50/50 ring-2 ring-purple-600"
                     : "border-zinc-200 bg-white hover:bg-zinc-50"
                 }`}
                 onClick={() => {
@@ -190,22 +179,18 @@ export function PlaceNewClient() {
                 }}
                 type="button"
               >
-                <span className="block text-sm font-black">
-                  나만 보기
+                <span className="flex items-center gap-1.5 text-sm font-black text-purple-900">
+                  🔒 나만 보기 (Private)
                 </span>
-                <span
-                  className={`mt-2 block text-xs font-semibold leading-5 ${
-                    visibility === "private" ? "text-zinc-200" : "text-zinc-500"
-                  }`}
-                >
-                  개인 장소로 등록합니다. 인증 연동 후 사용할 수 있습니다.
+                <span className="text-xs font-semibold text-zinc-500">
+                  나만의 개인 장소로 등록합니다. (JWT 인증 필요)
                 </span>
               </button>
             </div>
           </div>
 
-          <Button className="mt-8 w-full" disabled={isSaving} onClick={save}>
-            {isSaving ? "저장 중" : "장소 저장"}
+          <Button className="mt-8 w-full" onClick={save}>
+            장소 저장
           </Button>
         </section>
       </div>

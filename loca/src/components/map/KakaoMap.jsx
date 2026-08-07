@@ -94,7 +94,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick
   if (!appKey || loadError) {
     return (
       <div
-        className="relative h-full min-h-[360px] cursor-crosshair overflow-hidden rounded-xl bg-zinc-100"
+        className="relative h-full min-h-[560px] cursor-crosshair overflow-hidden rounded-2xl bg-zinc-100"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const x = (e.clientX - rect.left) / rect.width;
@@ -128,12 +128,12 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick
           </button>
         ))}
         <div className="absolute bottom-5 left-5 max-w-[90%] rounded-lg bg-white px-4 py-3 text-sm font-semibold text-zinc-600 shadow-sm">
-          지도를 클릭하면 위도와 경도가 자동 선택됩니다.
+          💡 지도를 클릭하면 위도와 경도가 자동 선택됩니다.
         </div>
       </div>
     );
   }
 
-  return <div ref={mapRef} className="h-full min-h-[360px] overflow-hidden rounded-xl bg-zinc-100" />;
+  return <div ref={mapRef} className="h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100" />;
 }
 
