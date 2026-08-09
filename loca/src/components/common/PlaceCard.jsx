@@ -1,51 +1,42 @@
 import { Link } from "react-router-dom";
-import { Icon } from "./Icon";
-import { TagChip } from "./TagChip";
 
 export function PlaceCard({ place, compact = false }) {
   const isPrivate = place.visibility === "private" || place.source === "user";
 
   return (
-    <Link
-      className="wire-card interactive block overflow-hidden focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-      to={`/place/${place.id}`}
-    >
-      <div className={`relative ${compact ? "h-28" : "h-40"}`}>
-        <img alt="" className="h-full w-full object-cover" src={place.imageUrl} />
+    <Link to={"/place/" + place.id} className="card" style={{ display: "block", position: "relative" }}>
+      <div style={{ position: "relative", height: compact ? 80 : 140 }}>
+        <img
+          alt={place.name}
+          src={place.imageUrl}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
         <span
-          className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black shadow-sm ${
-            isPrivate
-              ? "bg-zinc-900 text-white"
-              : "bg-white/95 text-emerald-800 backdrop-blur-sm"
-          }`}
+          style={{
+            position: "absolute",
+            left: 8,
+            top: 8,
+            background: isPrivate ? "#000" : "#fff",
+            color: isPrivate ? "#fff" : "#000",
+            padding: "2px 8px",
+            fontSize: 10,
+            fontWeight: "bold",
+            borderRadius: 12,
+            border: isPrivate ? "none" : "1px solid #ccc"
+          }}
         >
           {isPrivate ? "🔒 Private" : "🌐 Public"}
         </span>
-        <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-black">
-          <Icon className="h-4 w-4" name="bookmark" />
-        </span>
       </div>
-      <div className="p-4">
-        <h3 className="truncate text-base font-black">{place.name}</h3>
-        <p className="mt-1 text-sm font-semibold text-zinc-500">{place.categoryLabel}</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {place.tags.slice(0, compact ? 1 : 2).map((tag) => (
-            <TagChip compact key={tag}>
-              {tag}
-            </TagChip>
-          ))}
-        </div>
-        {!compact ? (
-          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-zinc-500">
-            <span className="flex items-center gap-1 text-[var(--warning)]">
-              <Icon className="h-3.5 w-3.5" filled name="star" />
-              {place.rating || "-"}
-            </span>
-            <span>{place.distance}</span>
-          </div>
-        ) : null}
+      <div style={{ padding: "8px 0 4px" }}>
+        <strong>{place.name}</strong>
+        {place.categoryLabel && <span style={{ marginLeft: 8, fontSize: 13 }}>{place.categoryLabel}</span>}
+        {place.rating && <span style={{ marginLeft: 8, fontSize: 13 }}>★ {place.rating}</span>}
+        {place.distance && <span style={{ marginLeft: 8, fontSize: 13, color: "#666" }}>{place.distance}</span>}
       </div>
+      {place.tags?.length > 0 && (
+        <div style={{ fontSize: 12, color: "#666" }}>{place.tags.slice(0, 3).join(" · ")}</div>
+      )}
     </Link>
   );
 }
-

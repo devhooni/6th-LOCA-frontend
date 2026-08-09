@@ -1,25 +1,24 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "path";
 
-const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname);
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      "@": rootDir,
-    },
-  },
   server: {
+    allowedHosts: ["loca-git-main-gdg-hongik-univ.vercel.app"],
     proxy: {
-      "/api": {
-        target: "https://sixth-loca-backend-3-12qz.onrender.com",
+      '/api': {
+        target: 'https://sixth-loca-backend-4-i9yx.onrender.com',
         changeOrigin: true,
         secure: false,
       },
     },
   },
+  resolve: {
+    alias: {
+      "@": rootDir,
+    },
+  },
 });
-

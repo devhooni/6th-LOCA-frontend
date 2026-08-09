@@ -1,77 +1,54 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Icon } from "@/src/components/common/Icon";
 import { TagChip } from "@/src/components/common/TagChip";
+import { PlaceCard } from "@/src/components/common/PlaceCard";
 import { AppShell } from "@/src/components/layout/AppShell";
 import { getPlaces } from "@/src/services/placeService";
 
-const moods = ["조용한", "새로운", "자연", "맛있는", "예술적인"];
+const MOODS = ["전체","조용한","새로운","자연","맛있는","예술적인","힐링"];
 
 export default function HomePage() {
   const [places, setPlaces] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeMood, setActiveMood] = useState(0);
 
   useEffect(() => {
-    getPlaces().then((data) => {
-      setPlaces(data.slice(0, 4));
-    });
+    getPlaces().then((data) => { setPlaces(data.slice(0, 6)); setLoading(false); });
   }, []);
 
   return (
     <AppShell>
-      <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-4xl font-black leading-tight lg:text-5xl">
-            안녕하세요, 진우님
-          </h1>
-          <p className="mt-4 text-lg font-semibold text-zinc-500">
-            오늘도 새로운 장소를 발견해 보세요.
-          </p>
-        </div>
-        <Link className="ui-dark inline-flex h-12 items-center justify-center rounded-lg px-6 text-sm font-bold" to="/explore">
-          주변 장소 탐색
-        </Link>
-      </section>
+      <div className="section">
+        <p style={{ margin: 0, fontSize: 13, color: "#666" }}>안녕하세요, 진우님</p>
+        <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 900 }}>오늘은 어디로 떠날까요?</h1>
+      </div>
 
-      <Link className="mt-10 flex h-14 items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-5 text-zinc-700 interactive" to="/explore">
-        <Icon className="h-5 w-5 text-zinc-500" name="search" />
-        <span className="text-sm font-bold">어디로 떠나볼까요?</span>
-      </Link>
+      <div className="section" style={{ display: "flex", gap: 8 }}>
+        <Link to="/for-you" className="btn-primary" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>For You</Link>
+        <Link to="/explore" className="btn-secondary" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>Explore</Link>
+      </div>
 
-      <section className="mt-10">
-        <h2 className="text-xl font-black">오늘의 기분</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {moods.map((mood, index) => (
-            <TagChip active={index === 0} key={mood}>
-              {mood}
-            </TagChip>
+      <div className="section">
+        <input type="text" placeholder="어디로 떠나볼까요?" readOnly className="input-field"
+          onClick={() => { window.location.href = "/explore"; }} style={{ cursor: "pointer" }} />
+      </div>
+
+      <div className="section">
+        <p style={{ fontWeight: 700, marginBottom: 8 }}>오늘의 기분</p>
+        <div className="hscroll">
+          {MOODS.map((mood, i) => (
+            <TagChip key={mood} active={activeMood === i} onClick={() => setActiveMood(i)}>{mood}</TagChip>
           ))}
         </div>
-      </section>
+      </div>
 
-      <section className="mt-12">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-black">LOCA 추천</h2>
-          <Link className="text-sm font-bold text-zinc-500 hover:text-black" to="/explore">
-            전체보기 →
-          </Link>
+      <div className="section">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <p style={{ fontWeight: 700, margin: 0 }}>LOCA 추천</p>
+          <Link to="/explore" style={{ fontSize: 13 }}>전체보기 →</Link>
         </div>
-
-        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {places.length > 0
-            ? places.map((place) => (
-                <Link className="wire-card interactive overflow-hidden" key={place.id} to={`/place/${place.id}`}>
-                  <img alt="" className="h-40 w-full object-cover" src={place.imageUrl} />
-                  <div className="p-4">
-                    <h3 className="font-black">{place.name}</h3>
-                    <p className="mt-1 text-sm font-semibold text-zinc-500">{place.categoryLabel}</p>
-                  </div>
-                </Link>
-              ))
-            : Array.from({ length: 4 }).map((_, index) => (
-                <div className="h-60 animate-pulse rounded-lg bg-zinc-100" key={index} />
-              ))}
-        </div>
-      </section>
+        {loading ? <p>로딩 중...</p> : places.map((place) => <PlaceCard key={place.id} place={place} />)}
+      </div>
     </AppShell>
   );
 }

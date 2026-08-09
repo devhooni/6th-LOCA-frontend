@@ -1,0 +1,261 @@
+commit c7f3e017a375e39ac039eab51f6d749b248d0859
+Author: Hunji <hhooni1004@gmail.com>
+Date:   Mon Jul 27 16:06:22 2026 +0900
+
+    fix adminPage
+
+diff --git a/loca/src/lib/apiClient.js b/loca/src/lib/apiClient.js
+index 5b69ece..2c1d8b3 100644
+--- a/loca/src/lib/apiClient.js
++++ b/loca/src/lib/apiClient.js
+@@ -1,27 +1,38 @@
+ const API_BASE_URL =
+-  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_API_BASE_URL) ||
+-  "https://sixth-loca-backend-3-12qz.onrender.com";
++  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_API_BASE_URL !== undefined
++    ? import.meta.env.VITE_PUBLIC_API_BASE_URL
++    : "";
+ 
+ export async function apiClient(path, options = {}) {
+-  if (!API_BASE_URL) {
+-    if ("fallback" in options) return options.fallback;
+-    throw new Error("API base URL is not configured.");
+-  }
+-
+-  let response;
+   const { fallback, ...fetchOptions } = options;
++  let response;
+ 
+-  try {
+-    response = await fetch(`${API_BASE_URL}${path}`, {
++  const tryFetch = async (targetUrl) => {
++    return await fetch(targetUrl, {
+       ...fetchOptions,
+       headers: {
+         "Content-Type": "application/json",
+         ...fetchOptions.headers,
+       },
+     });
++  };
++
++  try {
++    const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
++    response = await tryFetch(url);
+   } catch (error) {
+-    if ("fallback" in options) return options.fallback;
+-    throw new Error("현재 서버에 연결할 수 없습니다.");
++    // Direct request failed (e.g. CORS on localhost). Retry via local relative proxy path
++    if (API_BASE_URL) {
++      try {
++        response = await tryFetch(path);
++      } catch {
++        if ("fallback" in options) return options.fallback;
++        throw new Error("현재 서버에 연결할 수 없습니다.");
++      }
++    } else {
++      if ("fallback" in options) return options.fallback;
++      throw new Error("현재 서버에 연결할 수 없습니다.");
++    }
+   }
+ 
+   if (!response.ok) {
+@@ -38,3 +49,4 @@ export async function apiClient(path, options = {}) {
+   return text ? JSON.parse(text) : undefined;
+ }
+ 
++
+diff --git a/loca/src/services/placeService.js b/loca/src/services/placeService.js
+index 6a8a88a..c86562a 100644
+--- a/loca/src/services/placeService.js
++++ b/loca/src/services/placeService.js
+@@ -64,15 +64,15 @@ export function formatPlace(raw, isPrivate = false) {
+ export async function getPlaces() {
+   try {
+     const [publicData, privateData] = await Promise.all([
+-      apiClient("/api/places/public", { fallback: [] }),
+-      apiClient("/api/places/private", { fallback: [] }),
++      apiClient("/api/places/public"),
++      apiClient("/api/places/private"),
+     ]);
+ 
+-    const formattedPublic = (publicData || []).map((p) => formatPlace(p, false));
+-    const formattedPrivate = (privateData || []).map((p) => formatPlace(p, true));
++    const formattedPublic = Array.isArray(publicData) ? publicData.map((p) => formatPlace(p, false)) : [];
++    const formattedPrivate = Array.isArray(privateData) ? privateData.map((p) => formatPlace(p, true)) : [];
+     const combined = [...formattedPublic, ...formattedPrivate];
+ 
+-    return combined.length > 0 ? combined : mockPlaces;
++    return combined;
+   } catch {
+     return mockPlaces;
+   }
+@@ -80,9 +80,8 @@ export async function getPlaces() {
+ 
+ export async function getPublicPlaces() {
+   try {
+-    const data = await apiClient("/api/places/public", { fallback: [] });
+-    const formatted = (data || []).map((p) => formatPlace(p, false));
+-    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility !== "private");
++    const data = await apiClient("/api/places/public");
++    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+   } catch {
+     return mockPlaces.filter((p) => p.visibility !== "private");
+   }
+@@ -90,57 +89,52 @@ export async function getPublicPlaces() {
+ 
+ export async function getPrivatePlaces() {
+   try {
+-    const data = await apiClient("/api/places/private", { fallback: [] });
+-    const formatted = (data || []).map((p) => formatPlace(p, true));
+-    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility === "private");
++    const data = await apiClient("/api/places/private");
++    return Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
+   } catch {
+     return mockPlaces.filter((p) => p.visibility === "private");
+   }
+ }
+ 
+ export async function getPlaceById(placeId) {
+-  const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+   try {
+     const isNum = !isNaN(Number(placeId));
+     if (isNum) {
+       try {
+-        const publicRes = await apiClient(`/api/places/public/${placeId}`, { fallback: null });
++        const publicRes = await apiClient(`/api/places/public/${placeId}`);
+         if (publicRes) return formatPlace(publicRes, false);
+       } catch {}
+ 
+       try {
+-        const privateRes = await apiClient(`/api/places/private/${placeId}`, { fallback: null });
++        const privateRes = await apiClient(`/api/places/private/${placeId}`);
+         if (privateRes) return formatPlace(privateRes, true);
+       } catch {}
+     }
++    const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+     return fallback;
+   } catch {
+-    return fallback;
++    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+   }
+ }
+ 
+ export async function getPublicPlaceById(placeId) {
+-  const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+   try {
+     const isNum = !isNaN(Number(placeId));
+     if (isNum) {
+-      const publicRes = await apiClient(`/api/places/public/${placeId}`, { fallback: null });
++      const publicRes = await apiClient(`/api/places/public/${placeId}`);
+       if (publicRes) return formatPlace(publicRes, false);
+     }
+     return getPlaceById(placeId);
+   } catch {
+-    return fallback;
++    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+   }
+ }
+ 
+ export async function getPlaceReviews(placeId) {
+-  const fallback = mockReviews.filter((review) => String(review.placeId) === String(placeId));
+-  const finalFallback = fallback.length > 0 ? fallback : mockReviews.slice(0, 2);
+-
+   try {
+-    const userReviews = await apiClient("/api/users/me/reviews", { fallback: [] });
+-    if (Array.isArray(userReviews) && userReviews.length > 0) {
+-      const filtered = userReviews
++    const userReviews = await apiClient("/api/users/me/reviews");
++    if (Array.isArray(userReviews)) {
++      return userReviews
+         .filter((r) => String(r.placeId) === String(placeId))
+         .map((r) => ({
+           id: String(r.reviewId),
+@@ -155,11 +149,10 @@ export async function getPlaceReviews(placeId) {
+           atmosphereTags: r.atmosphereTags || [],
+           images: r.imageUrls || [],
+         }));
+-      if (filtered.length > 0) return filtered;
+     }
+-    return finalFallback;
++    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
+   } catch {
+-    return finalFallback;
++    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
+   }
+ }
+ 
+@@ -185,11 +178,6 @@ export async function createPlace(payload) {
+   const res = await apiClient(endpoint, {
+     method: "POST",
+     body: JSON.stringify(body),
+-    fallback: {
+-      ...mockPlaces[0],
+-      ...payload,
+-      id: `mock-${Date.now()}`,
+-    },
+   });
+ 
+   return formatPlace({ ...payload, ...res }, isPrivate);
+@@ -214,15 +202,11 @@ export async function updatePlace(placeId, payload) {
+     });
+     return formatPlace({ ...payload, ...res }, isPrivate);
+   } catch {
+-    try {
+-      const res = await apiClient(secondaryEndpoint, {
+-        method: "PUT",
+-        body: JSON.stringify(body),
+-      });
+-      return formatPlace({ ...payload, ...res }, !isPrivate);
+-    } catch {
+-      return formatPlace({ id: placeId, ...payload }, isPrivate);
+-    }
++    const res = await apiClient(secondaryEndpoint, {
++      method: "PUT",
++      body: JSON.stringify(body),
++    });
++    return formatPlace({ ...payload, ...res }, !isPrivate);
+   }
+ }
+ 
+@@ -230,9 +214,7 @@ export async function deletePlace(placeId) {
+   try {
+     await apiClient(`/api/admin/places/${placeId}`, { method: "DELETE" });
+   } catch {
+-    try {
+-      await apiClient(`/api/places/private/${placeId}`, { method: "DELETE" });
+-    } catch {}
++    await apiClient(`/api/places/private/${placeId}`, { method: "DELETE" });
+   }
+ }
+ 
+@@ -240,9 +222,8 @@ export async function getExploreRecommendations(tagIds = []) {
+   if (!tagIds || tagIds.length === 0) return getPlaces();
+   try {
+     const query = tagIds.map((id) => `tagIds=${id}`).join("&");
+-    const data = await apiClient(`/api/recommendations/explore?${query}`, { fallback: [] });
+-    const formatted = (data || []).map((p) => formatPlace(p, false));
+-    return formatted.length > 0 ? formatted : mockPlaces;
++    const data = await apiClient(`/api/recommendations/explore?${query}`);
++    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+   } catch {
+     return mockPlaces;
+   }
+diff --git a/loca/vite.config.js b/loca/vite.config.js
+index 4dd68dc..0cbb88d 100644
+--- a/loca/vite.config.js
++++ b/loca/vite.config.js
+@@ -12,4 +12,14 @@ export default defineConfig({
+       "@": rootDir,
+     },
+   },
++  server: {
++    proxy: {
++      "/api": {
++        target: "https://sixth-loca-backend-3-12qz.onrender.com",
++        changeOrigin: true,
++        secure: false,
++      },
++    },
++  },
+ });
++

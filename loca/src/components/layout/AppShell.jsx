@@ -1,12 +1,12 @@
 import { BottomNav } from "./BottomNav";
 
-export function AppShell({ children, showNav = true, flush = false }) {
+export function AppShell({ children, showNav = true }) {
   return (
-    <div className="app-shell">
-      {showNav ? <BottomNav /> : null}
-      <main className={`app-content ${flush ? "app-content--flush" : ""}`}>
+    <div className="mobile-shell">
+      {showNav && <BottomNav />}
+      <div className="page-content">
         {children}
-      </main>
+      </div>
     </div>
   );
 }

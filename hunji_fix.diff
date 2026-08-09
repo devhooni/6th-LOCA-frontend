@@ -1,0 +1,593 @@
+commit 5128532839cc8adce4988011d99b8c7472b500ef
+Author: Hunji <hhooni1004@gmail.com>
+Date:   Mon Jul 27 16:40:32 2026 +0900
+
+    fix
+
+diff --git a/loca/src/components/common/PlaceCard.jsx b/loca/src/components/common/PlaceCard.jsx
+index be621b5..de4f041 100644
+--- a/loca/src/components/common/PlaceCard.jsx
++++ b/loca/src/components/common/PlaceCard.jsx
+@@ -3,6 +3,8 @@ import { Icon } from "./Icon";
+ import { TagChip } from "./TagChip";
+ 
+ export function PlaceCard({ place, compact = false }) {
++  const isPrivate = place.visibility === "private" || place.source === "user";
++
+   return (
+     <Link
+       className="wire-card interactive block overflow-hidden focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+@@ -10,6 +12,15 @@ export function PlaceCard({ place, compact = false }) {
+     >
+       <div className={`relative ${compact ? "h-28" : "h-40"}`}>
+         <img alt="" className="h-full w-full object-cover" src={place.imageUrl} />
++        <span
++          className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black shadow-sm ${
++            isPrivate
++              ? "bg-zinc-900 text-white"
++              : "bg-white/95 text-emerald-800 backdrop-blur-sm"
++          }`}
++        >
++          {isPrivate ? "🔒 Private" : "🌐 Public"}
++        </span>
+         <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-black">
+           <Icon className="h-4 w-4" name="bookmark" />
+         </span>
+@@ -37,3 +48,4 @@ export function PlaceCard({ place, compact = false }) {
+     </Link>
+   );
+ }
++
+diff --git a/loca/src/components/map/KakaoMap.jsx b/loca/src/components/map/KakaoMap.jsx
+index 33f6608..6e7e520 100644
+--- a/loca/src/components/map/KakaoMap.jsx
++++ b/loca/src/components/map/KakaoMap.jsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from "react";
+ import { loadKakaoMapSdk } from "@/src/lib/kakaoMap";
+ 
+-export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
++export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick }) {
+   const mapRef = useRef(null);
+   const kakaoInstanceRef = useRef(null);
+   const mapInstanceRef = useRef(null);
+@@ -29,6 +29,14 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+           );
+           const map = new kakao.maps.Map(mapRef.current, { center, level: 4 });
+           mapInstanceRef.current = map;
++
++          kakao.maps.event.addListener(map, "click", (mouseEvent) => {
++            const latLng = mouseEvent.latLng;
++            onMapClick?.({
++              lat: Number(latLng.getLat().toFixed(6)),
++              lng: Number(latLng.getLng().toFixed(6)),
++            });
++          });
+         }
+         setLoadError("");
+       })
+@@ -40,7 +48,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+     return () => {
+       cancelled = true;
+     };
+-  }, [appKey]);
++  }, [appKey, onMapClick]);
+ 
+   // 2. 마커 생성 및 업데이트
+   useEffect(() => {
+@@ -85,7 +93,17 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+ 
+   if (!appKey || loadError) {
+     return (
+-      <div className="relative h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100">
++      <div
++        className="relative h-full min-h-[560px] cursor-crosshair overflow-hidden rounded-2xl bg-zinc-100"
++        onClick={(e) => {
++          const rect = e.currentTarget.getBoundingClientRect();
++          const x = (e.clientX - rect.left) / rect.width;
++          const y = (e.clientY - rect.top) / rect.height;
++          const lat = Number((37.565 - y * 0.02).toFixed(6));
++          const lng = Number((126.915 + x * 0.02).toFixed(6));
++          onMapClick?.({ lat, lng });
++        }}
++      >
+         <div className="absolute inset-0 opacity-70">
+           <div className="absolute left-[8%] top-[18%] h-24 w-44 rounded-lg bg-zinc-200" />
+           <div className="absolute right-[12%] top-[12%] h-32 w-52 rounded-lg bg-zinc-200" />
+@@ -99,7 +117,10 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+               selectedPlace?.id === place.id ? "ui-dark" : "bg-white text-black"
+             }`}
+             key={place.id}
+-            onClick={() => onSelectPlace?.(place)}
++            onClick={(evt) => {
++              evt.stopPropagation();
++              onSelectPlace?.(place);
++            }}
+             style={{ left: `${18 + (index % 3) * 24}%`, top: `${22 + Math.floor(index / 3) * 28}%` }}
+             type="button"
+           >
+@@ -107,9 +128,7 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+           </button>
+         ))}
+         <div className="absolute bottom-5 left-5 max-w-[90%] rounded-lg bg-white px-4 py-3 text-sm font-semibold text-zinc-600 shadow-sm">
+-          {!appKey
+-            ? "Kakao Map API 키(VITE_PUBLIC_KAKAO_MAP_KEY)가 설정되지 않아 와이어프레임 지도로 표시 중입니다."
+-            : loadError}
++          💡 지도를 클릭하면 위도와 경도가 자동 선택됩니다.
+         </div>
+       </div>
+     );
+@@ -117,3 +136,4 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace }) {
+ 
+   return <div ref={mapRef} className="h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100" />;
+ }
++
+diff --git a/loca/src/pages/AdminPlacesClient.jsx b/loca/src/pages/AdminPlacesClient.jsx
+index 0dc4c1c..557e1b6 100644
+--- a/loca/src/pages/AdminPlacesClient.jsx
++++ b/loca/src/pages/AdminPlacesClient.jsx
+@@ -80,6 +80,15 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
+     }
+   };
+ 
++  const [filter, setFilter] = useState("all");
++
++  const filteredPlaces = places.filter((p) => {
++    const isPrivate = p.visibility === "private" || p.source === "user";
++    if (filter === "public") return !isPrivate;
++    if (filter === "private") return isPrivate;
++    return true;
++  });
++
+   return (
+     <div className="w-full md:pl-8">
+       <h1 className="text-2xl font-extrabold">장소 관리</h1>
+@@ -195,42 +204,78 @@ export function AdminPlacesClient({ initialPlaces, tags }) {
+         </div>
+       </section>
+ 
+-      <section className="mt-5 space-y-3">
+-        {places.map((place) => (
+-          <article
+-            className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
+-            key={place.id}
+-          >
+-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+-              <div>
+-                <h2 className="font-extrabold">{place.name}</h2>
+-                <p className="mt-1 text-sm font-semibold text-zinc-500">
+-                  {place.categoryLabel} · {place.address}
+-                </p>
+-                <div className="mt-2 flex flex-wrap gap-1">
+-                  {place.tags.map((tag) => (
+-                    <TagChip compact key={tag}>
+-                      {tag}
+-                    </TagChip>
+-                  ))}
++      <section className="mt-8">
++        <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
++          <h2 className="text-lg font-black">등록 장소 목록 ({filteredPlaces.length})</h2>
++          <div className="flex gap-1.5">
++            {[
++              ["all", "전체"],
++              ["public", "🌐 Public"],
++              ["private", "🔒 Private"],
++            ].map(([key, label]) => (
++              <button
++                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
++                  filter === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
++                }`}
++                key={key}
++                onClick={() => setFilter(key)}
++                type="button"
++              >
++                {label}
++              </button>
++            ))}
++          </div>
++        </div>
++
++        <div className="mt-4 space-y-3">
++          {filteredPlaces.map((place) => {
++            const isPrivate = place.visibility === "private" || place.source === "user";
++            return (
++              <article
++                className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_rgba(24,24,27,0.08)]"
++                key={place.id}
++              >
++                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
++                  <div>
++                    <div className="flex items-center gap-2">
++                      <h2 className="font-extrabold">{place.name}</h2>
++                      <span
++                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
++                          isPrivate ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
++                        }`}
++                      >
++                        {isPrivate ? "🔒 Private" : "🌐 Public"}
++                      </span>
++                    </div>
++                    <p className="mt-1 text-sm font-semibold text-zinc-500">
++                      {place.categoryLabel} · {place.address}
++                    </p>
++                    <div className="mt-2 flex flex-wrap gap-1">
++                      {place.tags.map((tag) => (
++                        <TagChip compact key={tag}>
++                          {tag}
++                        </TagChip>
++                      ))}
++                    </div>
++                    <p className="mt-2 text-xs font-bold text-zinc-400">
++                      위도 {place.lat} · 경도 {place.lng} · 방문 {place.visitCount ?? 0}
++                    </p>
++                  </div>
++                  <div className="flex gap-2">
++                    <Button onClick={() => startEdit(place)} variant="secondary">
++                      수정
++                    </Button>
++                    <Button onClick={() => remove(place.id)} variant="ghost">
++                      삭제
++                    </Button>
++                  </div>
+                 </div>
+-                <p className="mt-2 text-xs font-bold text-zinc-400">
+-                  평점 {place.averageRating ?? place.rating} · 방문{" "}
+-                  {place.visitCount ?? 0} · 리뷰 {place.reviewCount}
+-                </p>
+-              </div>
+-              <div className="flex gap-2">
+-                <Button onClick={() => startEdit(place)} variant="secondary">
+-                  수정
+-                </Button>
+-                <Button onClick={() => remove(place.id)} variant="ghost">
+-                  삭제
+-                </Button>
+-              </div>
+-            </div>
+-          </article>
+-        ))}
++              </article>
++            );
++          })}
++        </div>
+       </section>
+     </div>
+   );
+ }
++
+diff --git a/loca/src/pages/PlaceNewClient.jsx b/loca/src/pages/PlaceNewClient.jsx
+index ca25d02..dc096dc 100644
+--- a/loca/src/pages/PlaceNewClient.jsx
++++ b/loca/src/pages/PlaceNewClient.jsx
+@@ -1,7 +1,7 @@
+ import { useState } from "react";
+ import { useNavigate } from "react-router-dom";
+ import { Button } from "@/src/components/common/Button";
+-import { Icon } from "@/src/components/common/Icon";
++import { KakaoMap } from "@/src/components/map/KakaoMap";
+ import { createPlace } from "@/src/services/placeService";
+ 
+ const defaultLocation = {
+@@ -15,7 +15,12 @@ export function PlaceNewClient() {
+   const [address, setAddress] = useState("");
+   const [lat, setLat] = useState(defaultLocation.lat);
+   const [lng, setLng] = useState(defaultLocation.lng);
+-  const [visibility, setVisibility] = useState("private");
++  const [visibility, setVisibility] = useState("public");
++
++  const handleMapClick = ({ lat: clickedLat, lng: clickedLng }) => {
++    setLat(String(clickedLat));
++    setLng(String(clickedLng));
++  };
+ 
+   const save = async () => {
+     if (!name.trim()) {
+@@ -23,24 +28,33 @@ export function PlaceNewClient() {
+       return;
+     }
+ 
+-    const created = await createPlace({
+-      name,
+-      category: "private",
+-      categoryLabel: "개인 장소",
+-      address: address || "지도에서 선택한 위치",
+-      lat: Number(lat),
+-      lng: Number(lng),
+-      description: "진우님이 직접 추가한 개인 장소입니다.",
+-      imageUrl:
+-        "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=900&q=80",
+-      tagIds: ["개인 장소"],
+-      tags: ["개인 장소"],
+-      visibility,
+-      source: "user",
+-      registrationMethod: "mapSelect",
+-    });
+-
+-    navigate(`/place/${created.id}`);
++    if (visibility === "private") {
++      window.alert("추후 기능 출시 예정입니다.");
++      return;
++    }
++
++    try {
++      const created = await createPlace({
++        name,
++        category: "cafe",
++        categoryLabel: "추천 장소",
++        address: address || "지도에서 선택한 위치",
++        lat: Number(lat),
++        lng: Number(lng),
++        description: "등록된 장소입니다.",
++        imageUrl:
++          "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=80",
++        tagIds: ["추천"],
++        tags: ["추천"],
++        visibility,
++        source: "kakao",
++        registrationMethod: "mapSelect",
++      });
++
++      navigate(`/place/${created.id}`);
++    } catch {
++      window.alert("장소 저장 중 문제가 발생했습니다.");
++    }
+   };
+ 
+   return (
+@@ -49,7 +63,7 @@ export function PlaceNewClient() {
+         <div>
+           <h1 className="text-4xl font-black">장소 추가</h1>
+           <p className="mt-3 text-base font-semibold text-zinc-500">
+-            리뷰와 별개로, 지도에 표시할 개인 장소 정보를 먼저 등록합니다.
++            지도를 클릭하여 위도/경도를 선택하거나 정보를 직접 입력하여 새로운 장소를 등록하세요.
+           </p>
+         </div>
+         <button
+@@ -60,26 +74,18 @@ export function PlaceNewClient() {
+         </button>
+       </section>
+ 
+-      <div className="mt-8 grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+-        <section className="wire-panel overflow-hidden bg-zinc-50">
+-          <div className="flex h-[520px] flex-col items-center justify-center p-8 text-center">
+-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
+-              <Icon className="h-7 w-7 text-zinc-500" name="mapPin" />
+-            </div>
+-            <h2 className="mt-5 text-xl font-black">지도 위치 선택 영역</h2>
+-            <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-zinc-500">
+-              추후 Kakao Map에서 지점을 클릭하면 주소와 위도/경도가 자동 입력되는 구조로 연결합니다.
+-            </p>
+-            <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+-              <div className="rounded-lg bg-white p-4">
+-                <p className="text-xs font-black text-zinc-400">위도</p>
+-                <p className="mt-1 text-sm font-bold">{lat}</p>
+-              </div>
+-              <div className="rounded-lg bg-white p-4">
+-                <p className="text-xs font-black text-zinc-400">경도</p>
+-                <p className="mt-1 text-sm font-bold">{lng}</p>
+-              </div>
+-            </div>
++      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr]">
++        <section className="wire-panel overflow-hidden bg-zinc-50 p-2">
++          <div className="mb-2 flex items-center justify-between px-3 pt-2">
++            <span className="text-xs font-black text-zinc-500">📍 지도 클릭으로 위도/경도 자동 선택</span>
++            <span className="text-xs font-bold text-zinc-400">위도: {lat} | 경도: {lng}</span>
++          </div>
++          <div className="h-[480px] w-full">
++            <KakaoMap
++              onMapClick={handleMapClick}
++              places={[{ id: "preview", name: name || "선택한 지점", lat: Number(lat), lng: Number(lng) }]}
++              selectedPlace={{ id: "preview", lat: Number(lat), lng: Number(lng) }}
++            />
+           </div>
+         </section>
+ 
+@@ -110,7 +116,7 @@ export function PlaceNewClient() {
+ 
+           <div className="mt-5 grid gap-3 sm:grid-cols-2">
+             <label className="block text-sm font-bold" htmlFor="place-lat">
+-              위도
++              위도 (Lat)
+               <input
+                 className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
+                 id="place-lat"
+@@ -120,7 +126,7 @@ export function PlaceNewClient() {
+               />
+             </label>
+             <label className="block text-sm font-bold" htmlFor="place-lng">
+-              경도
++              경도 (Lng)
+               <input
+                 className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
+                 id="place-lng"
+@@ -132,23 +138,44 @@ export function PlaceNewClient() {
+           </div>
+ 
+           <div className="mt-6">
+-            <p className="text-sm font-bold">공개 설정</p>
+-            <div className="mt-3 grid grid-cols-2 gap-2">
+-              {[
+-                ["private", "나만 보기"],
+-                ["public", "공유 가능"],
+-              ].map(([value, label]) => (
+-                <button
+-                  className={`h-11 rounded-lg border text-sm font-bold interactive ${
+-                    visibility === value ? "ui-dark" : "border-[var(--border)] bg-white text-zinc-600"
+-                  }`}
+-                  key={value}
+-                  onClick={() => setVisibility(value)}
+-                  type="button"
+-                >
+-                  {label}
+-                </button>
+-              ))}
++            <p className="text-sm font-bold">공개 설정 (Public / Private 구분)</p>
++            <div className="mt-3 grid grid-cols-2 gap-3">
++              <button
++                className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
++                  visibility === "public"
++                    ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-600"
++                    : "border-zinc-200 bg-white hover:bg-zinc-50"
++                }`}
++                onClick={() => setVisibility("public")}
++                type="button"
++              >
++                <span className="flex items-center gap-1.5 text-sm font-black text-emerald-900">
++                  🌐 전체 공개 (Public)
++                </span>
++                <span className="text-xs font-semibold text-zinc-500">
++                  모든 사용자가 볼 수 있는 공개 장소로 추가됩니다.
++                </span>
++              </button>
++
++              <button
++                className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
++                  visibility === "private"
++                    ? "border-purple-600 bg-purple-50/50 ring-2 ring-purple-600"
++                    : "border-zinc-200 bg-white hover:bg-zinc-50"
++                }`}
++                onClick={() => {
++                  setVisibility("private");
++                  window.alert("추후 기능 출시 예정입니다.");
++                }}
++                type="button"
++              >
++                <span className="flex items-center gap-1.5 text-sm font-black text-purple-900">
++                  🔒 나만 보기 (Private)
++                </span>
++                <span className="text-xs font-semibold text-zinc-500">
++                  나만의 개인 장소로 등록합니다. (JWT 인증 필요)
++                </span>
++              </button>
+             </div>
+           </div>
+ 
+@@ -160,3 +187,4 @@ export function PlaceNewClient() {
+     </div>
+   );
+ }
++
+diff --git a/loca/src/pages/ReviewWriteForm.jsx b/loca/src/pages/ReviewWriteForm.jsx
+index 02697cd..aeff36b 100644
+--- a/loca/src/pages/ReviewWriteForm.jsx
++++ b/loca/src/pages/ReviewWriteForm.jsx
+@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
+ import { Button } from "@/src/components/common/Button";
+ import { Icon } from "@/src/components/common/Icon";
+ import { AppShell } from "@/src/components/layout/AppShell";
+-import { getPlaceById } from "@/src/services/placeService";
++import { getPlaces, getPlaceById } from "@/src/services/placeService";
+ import { createReview } from "@/src/services/reviewService";
+ 
+ const companions = ["혼자", "친구와", "데이트", "가족"];
+@@ -12,8 +12,10 @@ const visibilityOptions = ["전체 공개", "나만 보기"];
+ export function ReviewWriteForm() {
+   const navigate = useNavigate();
+   const [searchParams] = useSearchParams();
+-  const placeId = searchParams.get("placeId") ?? "object-yeonnam";
++  const initialPlaceId = searchParams.get("placeId") ?? "101";
+   const [place, setPlace] = useState(null);
++  const [allPlaces, setAllPlaces] = useState([]);
++  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+   const [companion, setCompanion] = useState("혼자");
+   const [visibility, setVisibility] = useState("전체 공개");
+   const [title, setTitle] = useState("");
+@@ -21,8 +23,11 @@ export function ReviewWriteForm() {
+   const [saving, setSaving] = useState(false);
+ 
+   useEffect(() => {
+-    getPlaceById(placeId).then(setPlace);
+-  }, [placeId]);
++    getPlaces().then((data) => {
++      if (data?.length) setAllPlaces(data);
++    });
++    getPlaceById(initialPlaceId).then(setPlace);
++  }, [initialPlaceId]);
+ 
+   const complete = async () => {
+     if (!title.trim() || !review.trim()) {
+@@ -32,7 +37,7 @@ export function ReviewWriteForm() {
+ 
+     setSaving(true);
+     try {
+-      const targetPlaceId = place?.placeId || (!isNaN(Number(placeId)) ? Number(placeId) : 101);
++      const targetPlaceId = place?.placeId || (!isNaN(Number(initialPlaceId)) ? Number(initialPlaceId) : 101);
+       await createReview({
+         placeId: targetPlaceId,
+         placeName: place?.name,
+@@ -81,16 +86,65 @@ export function ReviewWriteForm() {
+         <section className="wire-panel p-6 lg:p-8">
+           <h2 className="text-xl font-black">기록 정보</h2>
+ 
+-          <label className="mt-6 block text-sm font-bold" htmlFor="record-place">
+-            장소
+-            <input
+-              className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
+-              id="record-place"
+-              placeholder="장소를 검색하거나 선택하세요"
+-              value={place?.name ?? "장소를 불러오는 중"}
+-              readOnly
+-            />
+-          </label>
++          <div className="relative mt-6">
++            <label className="block text-sm font-bold" htmlFor="record-place-trigger">
++              장소 선택
++            </label>
++            <div
++              className="mt-2 flex h-12 w-full cursor-pointer items-center justify-between rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-bold transition-all hover:border-zinc-500"
++              id="record-place-trigger"
++              onClick={() => setIsDropdownOpen((prev) => !prev)}
++            >
++              <div className="flex items-center gap-2 truncate">
++                <span>{place?.name ?? "장소를 선택해주세요"}</span>
++                {place ? (
++                  <span
++                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
++                      place.visibility === "private" || place.source === "user"
++                        ? "bg-zinc-900 text-white"
++                        : "bg-emerald-100 text-emerald-800"
++                    }`}
++                  >
++                    {place.visibility === "private" || place.source === "user" ? "🔒 Private" : "🌐 Public"}
++                  </span>
++                ) : null}
++              </div>
++              <span className="text-xs text-zinc-400">{isDropdownOpen ? "▲" : "▼"}</span>
++            </div>
++
++            {isDropdownOpen ? (
++              <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-2 shadow-xl">
++                <p className="px-3 py-1.5 text-xs font-bold text-zinc-400">등록된 장소 목록 ({allPlaces.length})</p>
++                {allPlaces.map((item) => {
++                  const isItemPrivate = item.visibility === "private" || item.source === "user";
++                  return (
++                    <button
++                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-zinc-100"
++                      key={item.id}
++                      onClick={() => {
++                        setPlace(item);
++                        setIsDropdownOpen(false);
++                      }}
++                      type="button"
++                    >
++                      <div className="min-w-0 flex-1">
++                        <p className="truncate font-black">{item.name}</p>
++                        <p className="mt-0.5 truncate text-xs font-medium text-zinc-400">{item.address}</p>
++                      </div>
++                      <span
++                        className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
++                          isItemPrivate ? "bg-zinc-900 text-white" : "bg-emerald-100 text-emerald-800"
++                        }`}
++                      >
++                        {isItemPrivate ? "🔒 Private" : "🌐 Public"}
++                      </span>
++                    </button>
++                  );
++                })}
++              </div>
++            ) : null}
++          </div>
++
+ 
+           <label className="mt-5 block text-sm font-bold" htmlFor="record-title">
+             제목

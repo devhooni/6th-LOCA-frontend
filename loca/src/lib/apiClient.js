@@ -1,17 +1,7 @@
 const API_BASE_URL =
-  typeof import.meta !== "undefined" && import.meta.env
-    ? import.meta.env.VITE_PUBLIC_API_BASE_URL || ""
+  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_PUBLIC_API_BASE_URL
     : "";
-const IS_DEV =
-  typeof import.meta !== "undefined" && import.meta.env
-    ? import.meta.env.DEV
-    : false;
-
-function buildApiUrl(path) {
-  if (IS_DEV) return path;
-  if (!API_BASE_URL) return path;
-  return `${API_BASE_URL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-}
 
 export async function apiClient(path, options = {}) {
   const { fallback, ...fetchOptions } = options;
@@ -28,31 +18,34 @@ export async function apiClient(path, options = {}) {
   };
 
   try {
-    const url = buildApiUrl(path);
+    const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
     response = await tryFetch(url);
   } catch (error) {
-    try {
-      response = await tryFetch(path);
-    } catch {
+    if (API_BASE_URL) {
+      try {
+        response = await tryFetch(path);
+      } catch {
+        if ("fallback" in options) return options.fallback;
+        throw new Error("현재 서버에 연결할 수 없습니다.");
+      }
+    } else {
       if ("fallback" in options) return options.fallback;
       throw new Error("현재 서버에 연결할 수 없습니다.");
     }
   }
 
-  if (!response.ok) {
+    if (!response.ok) {
     if ("fallback" in options) return options.fallback;
-    const message = response.status === 409 ? "이미 등록된 데이터입니다." : "요청 처리 중 문제가 발생했습니다.";
-    throw new Error(message);
-  }
-
-  if (response.status === 204) {
-    return undefined;
+    let errorMsg = `요청에 실패했습니다 (${response.status})`;
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.message) {
+        errorMsg = errorData.message;
+      }
+    } catch (e) {}
+    throw new Error(errorMsg);
   }
 
   const text = await response.text();
   return text ? JSON.parse(text) : undefined;
 }
-
-
-
-

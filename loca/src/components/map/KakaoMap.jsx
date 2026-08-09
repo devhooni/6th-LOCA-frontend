@@ -91,16 +91,37 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick
     map.panTo(moveLatLng);
   }, [selectedPlace]);
 
-  if (!appKey || loadError) {
+    if (!appKey || loadError) {
+    // Normalize coordinates for the fallback map
+    const validPlaces = places.filter(p => p.lat && p.lng);
+    let minLat = 37.4;
+    let maxLat = 37.7;
+    let minLng = 126.8;
+    let maxLng = 127.2;
+    
+    if (validPlaces.length > 0) {
+      minLat = Math.min(...validPlaces.map(p => p.lat));
+      maxLat = Math.max(...validPlaces.map(p => p.lat));
+      minLng = Math.min(...validPlaces.map(p => p.lng));
+      maxLng = Math.max(...validPlaces.map(p => p.lng));
+      
+      // Add padding
+      const latPad = (maxLat - minLat) * 0.1 || 0.01;
+      const lngPad = (maxLng - minLng) * 0.1 || 0.01;
+      minLat -= latPad; maxLat += latPad;
+      minLng -= lngPad; maxLng += lngPad;
+    }
+
     return (
       <div
-        className="relative h-full min-h-[560px] cursor-crosshair overflow-hidden rounded-2xl bg-zinc-100"
+        style={{ position: "relative", width: "100%", height: "100%", minHeight: 200, background: "#e8e8e8", cursor: "crosshair", overflow: "hidden" }}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const x = (e.clientX - rect.left) / rect.width;
           const y = (e.clientY - rect.top) / rect.height;
-          const lat = Number((37.565 - y * 0.02).toFixed(6));
-          const lng = Number((126.915 + x * 0.02).toFixed(6));
+          // Reverse normalization to get lat/lng
+          const lat = Number((maxLat - (y * (maxLat - minLat))).toFixed(6));
+          const lng = Number((minLng + (x * (maxLng - minLng))).toFixed(6));
           onMapClick?.({ lat, lng });
         }}
       >
@@ -110,30 +131,44 @@ export function KakaoMap({ places = [], selectedPlace, onSelectPlace, onMapClick
           <div className="absolute bottom-[16%] left-[22%] h-40 w-56 rounded-lg bg-zinc-200" />
           <div className="absolute bottom-[10%] right-[18%] h-28 w-44 rounded-lg bg-zinc-200" />
         </div>
-        {places.slice(0, 6).map((place, index) => (
-          <button
-            aria-label={`${place.name} 선택`}
-            className={`absolute flex h-9 w-9 items-center justify-center rounded-full text-xs font-black shadow-sm ${
-              selectedPlace?.id === place.id ? "ui-dark" : "bg-white text-black"
-            }`}
-            key={place.id}
-            onClick={(evt) => {
-              evt.stopPropagation();
-              onSelectPlace?.(place);
-            }}
-            style={{ left: `${18 + (index % 3) * 24}%`, top: `${22 + Math.floor(index / 3) * 28}%` }}
-            type="button"
-          >
-            {index + 1}
-          </button>
-        ))}
-        <div className="absolute bottom-5 left-5 max-w-[90%] rounded-lg bg-white px-4 py-3 text-sm font-semibold text-zinc-600 shadow-sm">
-          💡 지도를 클릭하면 위도와 경도가 자동 선택됩니다.
+        {places.map((place, index) => {
+          const left = place.lng ? ((place.lng - minLng) / (maxLng - minLng)) * 100 : (18 + (index % 3) * 24);
+          const top = place.lat ? ((maxLat - place.lat) / (maxLat - minLat)) * 100 : (22 + Math.floor(index / 3) * 28);
+          
+          return (
+            <button
+              key={place.id}
+              onClick={(evt) => {
+                evt.stopPropagation();
+                onSelectPlace?.(place);
+              }}
+              style={{
+                position: "absolute",
+                left: `${Math.max(2, Math.min(95, left))}%`,
+                top: `${Math.max(2, Math.min(95, top))}%`,
+                transform: "translate(-50%, -50%)",
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: selectedPlace?.id === place.id ? "#000" : "#fff",
+                color: selectedPlace?.id === place.id ? "#fff" : "#000",
+                fontSize: 10,
+                fontWeight: "bold",
+                border: "1px solid #ccc",
+                zIndex: selectedPlace?.id === place.id ? 10 : 1
+              }}
+            >
+              {index + 1}
+            </button>
+          );
+        })}
+        <div style={{ position: "absolute", bottom: 12, left: 12, background: "#fff", padding: "6px 10px", borderRadius: 8, fontSize: 12, fontWeight: "bold" }}>
+          💡 지도를 클릭하면 위치가 선택됩니다.
         </div>
       </div>
     );
   }
 
-  return <div ref={mapRef} className="h-full min-h-[560px] overflow-hidden rounded-2xl bg-zinc-100" />;
+  return <div ref={mapRef} style={{ width: "100%", height: "100%", minHeight: 200, background: "#e8e8e8" }} />;
 }
 

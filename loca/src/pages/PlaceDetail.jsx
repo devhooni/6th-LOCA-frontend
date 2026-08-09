@@ -1,16 +1,17 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Button } from "@/src/components/common/Button";
-import { Icon } from "@/src/components/common/Icon";
-import { TagChip } from "@/src/components/common/TagChip";
-import { AppShell } from "@/src/components/layout/AppShell";
-import { getPublicPlaceById, getPlaceReviews } from "@/src/services/placeService";
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { TagChip } from '@/src/components/common/TagChip';
+import { AppShell } from '@/src/components/layout/AppShell';
+import { getPublicPlaceById, getPlaceReviews } from '@/src/services/placeService';
+
+const TABS = ['정보', '기록', '주변'];
 
 export default function PlaceDetailPage() {
   const { id } = useParams();
   const [place, setPlace] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('정보');
 
   useEffect(() => {
     setLoading(true);
@@ -19,99 +20,56 @@ export default function PlaceDetailPage() {
         setPlace(placeData);
         setReviews(reviewsData);
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) {
-    return (
-      <AppShell>
-        <div className="h-96 animate-pulse rounded-2xl bg-zinc-100" />
-      </AppShell>
-    );
-  }
-
-  if (!place) {
-    return (
-      <AppShell>
-        <div className="wire-panel p-8 text-sm font-semibold text-zinc-500">
-          장소를 찾을 수 없어요.
-        </div>
-      </AppShell>
-    );
-  }
+  if (loading) return <AppShell><p>로딩 중...</p></AppShell>;
+  if (!place) return <AppShell><p>장소를 찾을 수 없어요. <Link to='/explore'>돌아가기</Link></p></AppShell>;
 
   return (
     <AppShell>
-      <Link className="inline-flex h-10 items-center text-sm font-bold text-zinc-500 hover:text-black" to="/explore">
-        ← Explore로 돌아가기
-      </Link>
-
-      <section className="mt-6 grid gap-8 lg:grid-cols-[1fr_420px]">
-        <img alt="" className="h-[520px] w-full rounded-2xl object-cover" src={place.imageUrl} />
-
-        <aside className="flex flex-col">
+      <Link to='/explore'>← 탐색으로 돌아가기</Link>
+      <img src={place.imageUrl} alt={place.name} style={{ width: '100%', height: 200, objectFit: 'cover', marginTop: 8 }} />
+      <h1>{place.name}</h1>
+      <p>{place.categoryLabel} · {place.address}</p>
+      {place.rating && <p>별점 {place.rating} · 기록 {reviews.length}개</p>}
+      <div>
+        {TABS.map((tab) => (
+          <button key={tab} type='button' onClick={() => setActiveTab(tab)}
+            style={{ fontWeight: activeTab === tab ? 'bold' : 'normal', marginRight: 8 }}>
+            {tab}
+          </button>
+        ))}
+      </div>
+      <hr />
+      {activeTab === '정보' && (
+        <div>
           <div>
-            <h1 className="text-4xl font-black leading-tight">{place.name}</h1>
-            <p className="mt-3 text-base font-semibold text-zinc-500">
-              {place.categoryLabel} · {place.address}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <TagChip active>{place.categoryLabel}</TagChip>
-              {place.tags?.slice(0, 3).map((tag) => (
-                <TagChip key={tag}>{tag}</TagChip>
-              ))}
-            </div>
+            <TagChip active>{place.categoryLabel}</TagChip>
+            {(place.tags ?? []).slice(0, 4).map((tag) => <TagChip key={tag}>{tag}</TagChip>)}
           </div>
-
-          <dl className="mt-8 space-y-5 border-y border-[var(--border)] py-6">
-            <div>
-              <dt className="text-sm font-black">주소</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-500">{place.address}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-black">영업시간</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-500">{place.hours}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-black">평점</dt>
-              <dd className="mt-1 flex items-center gap-2 text-sm font-semibold text-zinc-500">
-                <Icon className="h-4 w-4 text-[var(--warning)]" filled name="star" />
-                {place.rating || "-"} · 기록 {place.reviewCount ?? reviews.length}개 · {place.distance}
-              </dd>
-            </div>
-          </dl>
-
-          <p className="mt-6 text-base font-semibold leading-8 text-zinc-600">
-            {place.description}
-          </p>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_1.4fr]">
-            <Button variant="secondary">
-              ♡ 저장하기
-            </Button>
-            <Button href={`/review/write?placeId=${place.id}`}>
-              이 장소 기록하기
-            </Button>
-          </div>
-        </aside>
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-xl font-black">방문자 기록 ({reviews.length})</h2>
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          {reviews.map((review) => (
-            <article className="wire-panel p-5" key={review.id}>
-              <p className="text-sm font-black">{review.title}</p>
-              <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-zinc-500">
-                {review.memory || review.review}
-              </p>
-              <p className="mt-4 text-xs font-bold text-zinc-400">{review.date}</p>
-            </article>
-          ))}
+          {place.description && <p>{place.description}</p>}
+          {place.address && <p>주소: {place.address}</p>}
+          {place.hours && <p>영업시간: {place.hours}</p>}
         </div>
-      </section>
+      )}
+      {activeTab === '기록' && (
+        <div>
+          <p>방문자 기록 {reviews.length}개</p>
+          {reviews.length === 0
+            ? <p>아직 기록이 없어요.</p>
+            : reviews.map((review) => (
+                <article key={review.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #eee' }}>
+                  <strong>{review.title}</strong>
+                  <p>{review.memory || review.review}</p>
+                  <small>{review.date}</small>
+                </article>
+              ))}
+        </div>
+      )}
+      {activeTab === '주변' && <p><Link to='/map'>지도에서 주변 장소 보기</Link></p>}
+      <hr />
+      <Link to={'/review/write?placeId=' + place.id}>이 장소 기록하기</Link>
     </AppShell>
   );
 }

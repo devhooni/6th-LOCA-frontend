@@ -64,35 +64,37 @@ export function formatPlace(raw, isPrivate = false) {
 export async function getPlaces() {
   try {
     const [publicData, privateData] = await Promise.all([
-      apiClient("/api/places/public"),
-      apiClient("/api/places/private"),
+      apiClient("/api/places/public").catch(() => []),
+      apiClient("/api/places/private").catch(() => []),
     ]);
 
     const formattedPublic = Array.isArray(publicData) ? publicData.map((p) => formatPlace(p, false)) : [];
     const formattedPrivate = Array.isArray(privateData) ? privateData.map((p) => formatPlace(p, true)) : [];
     const combined = [...formattedPublic, ...formattedPrivate];
 
-    return combined;
+    return combined.length > 0 ? combined : mockPlaces;
   } catch {
-    return mockPlaces;
+    return [];
   }
 }
 
 export async function getPublicPlaces() {
   try {
-    const data = await apiClient("/api/places/public");
-    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+    const data = await apiClient("/api/places/public").catch(() => []);
+    const formatted = Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility !== "private");
   } catch {
-    return mockPlaces.filter((p) => p.visibility !== "private");
+    return [];
   }
 }
 
 export async function getPrivatePlaces() {
   try {
-    const data = await apiClient("/api/places/private");
-    return Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
+    const data = await apiClient("/api/places/private").catch(() => []);
+    const formatted = Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
+    return formatted.length > 0 ? formatted : mockPlaces.filter((p) => p.visibility === "private");
   } catch {
-    return mockPlaces.filter((p) => p.visibility === "private");
+    return [];
   }
 }
 
@@ -110,10 +112,9 @@ export async function getPlaceById(placeId) {
         if (privateRes) return formatPlace(privateRes, true);
       } catch {}
     }
-    const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
-    return fallback;
+    return null;
   } catch {
-    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+    return null;
   }
 }
 
@@ -126,7 +127,7 @@ export async function getPublicPlaceById(placeId) {
     }
     return getPlaceById(placeId);
   } catch {
-    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+    return null;
   }
 }
 
@@ -150,9 +151,9 @@ export async function getPlaceReviews(placeId) {
           images: r.imageUrls || [],
         }));
     }
-    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
+    return [];
   } catch {
-    return mockReviews.filter((review) => String(review.placeId) === String(placeId));
+    return [];
   }
 }
 
@@ -163,7 +164,7 @@ export async function createPlace(payload) {
   const body = isPrivate
     ? {
         name: payload.name,
-        address: payload.address || "서울 마포구",
+        ...(payload.address ? { address: payload.address } : {}),
         lat: Number(payload.lat) || 37.5563,
         lng: Number(payload.lng) || 126.9236,
       }
@@ -229,7 +230,7 @@ export async function getExploreRecommendations(tagIds = []) {
     const data = await apiClient(`/api/recommendations/explore?${query}`);
     return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
   } catch {
-    return mockPlaces;
+    return [];
   }
 }
 
