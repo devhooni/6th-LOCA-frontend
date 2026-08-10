@@ -4,6 +4,7 @@ import { TagChip } from "./TagChip";
 
 export function PlaceCard({ place, compact = false }) {
   const isPrivate = place.visibility === "private" || place.source === "user";
+  const tags = place.tags ?? [];
 
   return (
     <Link
@@ -29,7 +30,7 @@ export function PlaceCard({ place, compact = false }) {
         <h3 className="truncate text-base font-black">{place.name}</h3>
         <p className="mt-1 text-sm font-semibold text-zinc-500">{place.categoryLabel}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {place.tags.slice(0, compact ? 1 : 2).map((tag) => (
+          {tags.slice(0, compact ? 1 : 2).map((tag) => (
             <TagChip compact key={tag}>
               {tag}
             </TagChip>

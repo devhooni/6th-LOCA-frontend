@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "@/src/components/common/Icon";
 
-const navItems = [
+const NAV_ITEMS = [
   { href: "/", label: "홈", match: (path) => path === "/" },
   {
     href: "/explore",
@@ -14,6 +14,19 @@ const navItems = [
   { href: "/my", label: "마이페이지", match: (path) => path.startsWith("/my") },
 ];
 
+function NavLink({ active, href, label }) {
+  return (
+    <Link
+      className={`flex h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold interactive ${
+        active ? "ui-soft-selected border" : "border border-transparent text-zinc-500 hover:text-zinc-900"
+      }`}
+      to={href}
+    >
+      {label}
+    </Link>
+  );
+}
+
 export function BottomNav() {
   const { pathname } = useLocation();
 
@@ -24,28 +37,20 @@ export function BottomNav() {
       </Link>
 
       <nav aria-label="주요 메뉴" className="no-scrollbar flex max-w-full items-center gap-2 overflow-x-auto">
-        {navItems.map((item) => {
-          const active = item.match(pathname);
-
-          return (
-            <Link
-              className={`flex h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold interactive ${
-                active ? "ui-soft-selected border" : "border border-transparent text-zinc-500 hover:text-zinc-900"
-              }`}
-              key={item.href}
-              to={item.href}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => (
+          <NavLink active={item.match(pathname)} href={item.href} key={item.href} label={item.label} />
+        ))}
       </nav>
 
       <div className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
         <Link className="hidden h-10 items-center px-2 hover:text-zinc-900 md:flex" to="/explore">
           검색
         </Link>
-        <button aria-label="알림" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-zinc-100" type="button">
+        <button
+          aria-label="알림"
+          className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-zinc-100"
+          type="button"
+        >
           <Icon className="h-5 w-5" name="bell" />
         </button>
         <Link className="h-10 rounded-full border border-[var(--border)] px-4 leading-10 hover:bg-zinc-50" to="/my">
