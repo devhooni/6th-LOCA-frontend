@@ -2,6 +2,7 @@ const API_BASE_URL =
   typeof import.meta !== "undefined" && import.meta.env
     ? import.meta.env.VITE_PUBLIC_API_BASE_URL || ""
     : "";
+
 const IS_DEV =
   typeof import.meta !== "undefined" && import.meta.env
     ? import.meta.env.DEV
@@ -13,35 +14,37 @@ function buildApiUrl(path) {
   return `${API_BASE_URL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
+async function fetchJson(targetUrl, fetchOptions) {
+  return fetch(targetUrl, {
+    ...fetchOptions,
+    headers: {
+      "Content-Type": "application/json",
+      ...fetchOptions.headers,
+    },
+  });
+}
+
 export async function apiClient(path, options = {}) {
   const { fallback, ...fetchOptions } = options;
   let response;
 
-  const tryFetch = async (targetUrl) => {
-    return await fetch(targetUrl, {
-      ...fetchOptions,
-      headers: {
-        "Content-Type": "application/json",
-        ...fetchOptions.headers,
-      },
-    });
-  };
-
   try {
-    const url = buildApiUrl(path);
-    response = await tryFetch(url);
-  } catch (error) {
+    response = await fetchJson(buildApiUrl(path), fetchOptions);
+  } catch {
     try {
-      response = await tryFetch(path);
+      response = await fetchJson(path, fetchOptions);
     } catch {
-      if ("fallback" in options) return options.fallback;
+      if ("fallback" in options) return fallback;
       throw new Error("현재 서버에 연결할 수 없습니다.");
     }
   }
 
   if (!response.ok) {
-    if ("fallback" in options) return options.fallback;
-    const message = response.status === 409 ? "이미 등록된 데이터입니다." : "요청 처리 중 문제가 발생했습니다.";
+    if ("fallback" in options) return fallback;
+    const message =
+      response.status === 409
+        ? "이미 등록된 데이터입니다."
+        : "요청 처리 중 문제가 발생했습니다.";
     throw new Error(message);
   }
 
@@ -50,9 +53,12 @@ export async function apiClient(path, options = {}) {
   }
 
   const text = await response.text();
-  return text ? JSON.parse(text) : undefined;
+  if (!text) return undefined;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    if ("fallback" in options) return fallback;
+    throw new Error("서버 응답을 해석할 수 없습니다.");
+  }
 }
-
-
-
-

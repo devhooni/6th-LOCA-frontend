@@ -2,6 +2,12 @@ import { apiClient } from "@/src/lib/apiClient";
 import { mockPlaces } from "@/src/mocks/places";
 import { mockReviews } from "@/src/mocks/reviews";
 
+const DEFAULT_LOCATION = {
+  address: "서울 마포구 홍대입구역 근처",
+  lat: 37.5563,
+  lng: 126.9236,
+};
+
 const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=80",
   "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=80",
@@ -16,25 +22,36 @@ function getFallbackImage(id, isPrivate) {
   if (isPrivate) {
     return "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=900&q=80";
   }
+
   const numericId = typeof id === "number" ? id : parseInt(id, 10) || 0;
   return FALLBACK_IMAGES[numericId % FALLBACK_IMAGES.length];
 }
 
+function normalizeTags(raw, isPrivate) {
+  if (Array.isArray(raw.tags)) {
+    return raw.tags.map((tag) => (typeof tag === "string" ? tag : tag.name));
+  }
+
+  if (Array.isArray(raw.tagIds)) {
+    return raw.tagIds;
+  }
+
+  return isPrivate ? ["개인 장소"] : ["분위기 좋은", "추천"];
+}
+
+function isNumericId(placeId) {
+  return !Number.isNaN(Number(placeId));
+}
+
+function findMockPlace(placeId) {
+  return mockPlaces.find((place) => String(place.id) === String(placeId)) ?? mockPlaces[0];
+}
+
 export function formatPlace(raw, isPrivate = false) {
   if (!raw) return null;
+
   const id = raw.placeId ?? raw.id;
   const name = raw.name ?? "";
-
-  let tags = [];
-  if (Array.isArray(raw.tags)) {
-    tags = raw.tags.map((t) => (typeof t === "string" ? t : t.name));
-  } else if (Array.isArray(raw.tagIds)) {
-    tags = raw.tagIds;
-  }
-
-  if (tags.length === 0) {
-    tags = isPrivate ? ["개인 장소"] : ["분위기 좋은", "추천"];
-  }
 
   return {
     ...raw,
@@ -46,10 +63,10 @@ export function formatPlace(raw, isPrivate = false) {
     source: raw.source ?? (isPrivate ? "user" : "kakao"),
     category: raw.category ?? (isPrivate ? "culture" : "cafe"),
     categoryLabel: raw.categoryLabel ?? (isPrivate ? "개인 장소" : "카페"),
-    tags,
-    address: raw.address ?? "서울 마포구",
-    lat: Number(raw.lat) || 37.5563,
-    lng: Number(raw.lng) || 126.9236,
+    tags: normalizeTags(raw, isPrivate),
+    address: raw.address ?? DEFAULT_LOCATION.address,
+    lat: Number(raw.lat) || DEFAULT_LOCATION.lat,
+    lng: Number(raw.lng) || DEFAULT_LOCATION.lng,
     rating: raw.rating ?? raw.averageRating ?? 4.5,
     averageRating: raw.averageRating ?? raw.rating ?? 4.5,
     visitCount: raw.visitCount ?? 0,
@@ -68,11 +85,14 @@ export async function getPlaces() {
       apiClient("/api/places/private"),
     ]);
 
-    const formattedPublic = Array.isArray(publicData) ? publicData.map((p) => formatPlace(p, false)) : [];
-    const formattedPrivate = Array.isArray(privateData) ? privateData.map((p) => formatPlace(p, true)) : [];
-    const combined = [...formattedPublic, ...formattedPrivate];
+    const publicPlaces = Array.isArray(publicData)
+      ? publicData.map((place) => formatPlace(place, false))
+      : [];
+    const privatePlaces = Array.isArray(privateData)
+      ? privateData.map((place) => formatPlace(place, true))
+      : [];
 
-    return combined;
+    return [...publicPlaces, ...privatePlaces];
   } catch {
     return mockPlaces;
   }
@@ -80,133 +100,132 @@ export async function getPlaces() {
 
 export async function getPublicPlaces() {
   try {
-    const data = await apiClient("/api/places/public");
-    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+    const places = await apiClient("/api/places/public");
+    return Array.isArray(places) ? places.map((place) => formatPlace(place, false)) : [];
   } catch {
-    return mockPlaces.filter((p) => p.visibility !== "private");
+    return mockPlaces.filter((place) => place.visibility !== "private");
   }
 }
 
 export async function getPrivatePlaces() {
   try {
-    const data = await apiClient("/api/places/private");
-    return Array.isArray(data) ? data.map((p) => formatPlace(p, true)) : [];
+    const places = await apiClient("/api/places/private");
+    return Array.isArray(places) ? places.map((place) => formatPlace(place, true)) : [];
   } catch {
-    return mockPlaces.filter((p) => p.visibility === "private");
+    return mockPlaces.filter((place) => place.visibility === "private");
   }
 }
 
 export async function getPlaceById(placeId) {
   try {
-    const isNum = !isNaN(Number(placeId));
-    if (isNum) {
+    if (isNumericId(placeId)) {
       try {
-        const publicRes = await apiClient(`/api/places/public/${placeId}`);
-        if (publicRes) return formatPlace(publicRes, false);
+        const publicPlace = await apiClient(`/api/places/public/${placeId}`);
+        if (publicPlace) return formatPlace(publicPlace, false);
       } catch {}
 
       try {
-        const privateRes = await apiClient(`/api/places/private/${placeId}`);
-        if (privateRes) return formatPlace(privateRes, true);
+        const privatePlace = await apiClient(`/api/places/private/${placeId}`);
+        if (privatePlace) return formatPlace(privatePlace, true);
       } catch {}
     }
-    const fallback = mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
-    return fallback;
+
+    return findMockPlace(placeId);
   } catch {
-    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+    return findMockPlace(placeId);
   }
 }
 
 export async function getPublicPlaceById(placeId) {
   try {
-    const isNum = !isNaN(Number(placeId));
-    if (isNum) {
-      const publicRes = await apiClient(`/api/places/public/${placeId}`);
-      if (publicRes) return formatPlace(publicRes, false);
+    if (isNumericId(placeId)) {
+      const publicPlace = await apiClient(`/api/places/public/${placeId}`);
+      if (publicPlace) return formatPlace(publicPlace, false);
     }
+
     return getPlaceById(placeId);
   } catch {
-    return mockPlaces.find((p) => String(p.id) === String(placeId)) ?? mockPlaces[0];
+    return findMockPlace(placeId);
   }
 }
 
 export async function getPlaceReviews(placeId) {
   try {
     const userReviews = await apiClient("/api/users/me/reviews");
+
     if (Array.isArray(userReviews)) {
       return userReviews
-        .filter((r) => String(r.placeId) === String(placeId))
-        .map((r) => ({
-          id: String(r.reviewId),
-          reviewId: r.reviewId,
-          placeId: String(r.placeId),
-          title: r.title,
-          memory: r.title,
-          review: r.title,
-          date: r.createdAt ? new Date(r.createdAt).toISOString().split("T")[0].replace(/-/g, ".") : "2024.05.20",
-          companion: r.companion,
-          keywords: r.keywords || [],
-          atmosphereTags: r.atmosphereTags || [],
-          images: r.imageUrls || [],
+        .filter((review) => String(review.placeId) === String(placeId))
+        .map((review) => ({
+          id: String(review.reviewId),
+          reviewId: review.reviewId,
+          placeId: String(review.placeId),
+          title: review.title,
+          memory: review.title,
+          review: review.title,
+          date: review.createdAt
+            ? new Date(review.createdAt).toISOString().split("T")[0].replace(/-/g, ".")
+            : "2024.05.20",
+          companion: review.companion,
+          keywords: review.keywords || [],
+          atmosphereTags: review.atmosphereTags || [],
+          images: review.imageUrls || [],
         }));
     }
+
     return mockReviews.filter((review) => String(review.placeId) === String(placeId));
   } catch {
     return mockReviews.filter((review) => String(review.placeId) === String(placeId));
   }
 }
 
+function buildPlaceBody(payload, isPrivate) {
+  const baseBody = {
+    name: payload.name,
+    address: payload.address || DEFAULT_LOCATION.address,
+    lat: Number(payload.lat) || DEFAULT_LOCATION.lat,
+    lng: Number(payload.lng) || DEFAULT_LOCATION.lng,
+  };
+
+  if (isPrivate) return baseBody;
+
+  return {
+    ...baseBody,
+    kakaoPlaceId: payload.kakaoPlaceId || `kakao-${Date.now()}`,
+  };
+}
+
 export async function createPlace(payload) {
   const isPrivate = payload.visibility === "private";
   const endpoint = isPrivate ? "/api/places/private" : "/api/admin/places";
 
-  const body = isPrivate
-    ? {
-        name: payload.name,
-        address: payload.address || "서울 마포구",
-        lat: Number(payload.lat) || 37.5563,
-        lng: Number(payload.lng) || 126.9236,
-      }
-    : {
-        name: payload.name,
-        kakaoPlaceId: payload.kakaoPlaceId || `kakao-${Date.now()}`,
-        address: payload.address || "서울 마포구",
-        lat: Number(payload.lat) || 37.5563,
-        lng: Number(payload.lng) || 126.9236,
-      };
-
-  const res = await apiClient(endpoint, {
+  const createdPlace = await apiClient(endpoint, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(buildPlaceBody(payload, isPrivate)),
   });
 
-  return formatPlace({ ...payload, ...res }, isPrivate);
+  return formatPlace({ ...payload, ...createdPlace }, isPrivate);
 }
 
 export async function updatePlace(placeId, payload) {
-  const body = {
-    name: payload.name,
-    address: payload.address || "서울 마포구",
-    lat: Number(payload.lat) || 37.5563,
-    lng: Number(payload.lng) || 126.9236,
-  };
-
   const isPrivate = payload.visibility === "private" || payload.source === "user";
   const primaryEndpoint = isPrivate ? `/api/places/private/${placeId}` : `/api/admin/places/${placeId}`;
   const secondaryEndpoint = isPrivate ? `/api/admin/places/${placeId}` : `/api/places/private/${placeId}`;
 
   try {
-    const res = await apiClient(primaryEndpoint, {
+    const updatedPlace = await apiClient(primaryEndpoint, {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify(buildPlaceBody(payload, isPrivate)),
     });
-    return formatPlace({ ...payload, ...res }, isPrivate);
+
+    return formatPlace({ ...payload, ...updatedPlace }, isPrivate);
   } catch {
-    const res = await apiClient(secondaryEndpoint, {
+    const updatedPlace = await apiClient(secondaryEndpoint, {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify(buildPlaceBody(payload, !isPrivate)),
     });
-    return formatPlace({ ...payload, ...res }, !isPrivate);
+
+    return formatPlace({ ...payload, ...updatedPlace }, !isPrivate);
   }
 }
 
@@ -224,12 +243,12 @@ export async function deletePlace(placeId, payload = {}) {
 
 export async function getExploreRecommendations(tagIds = []) {
   if (!tagIds || tagIds.length === 0) return getPlaces();
+
   try {
     const query = tagIds.map((id) => `tagIds=${id}`).join("&");
-    const data = await apiClient(`/api/recommendations/explore?${query}`);
-    return Array.isArray(data) ? data.map((p) => formatPlace(p, false)) : [];
+    const places = await apiClient(`/api/recommendations/explore?${query}`);
+    return Array.isArray(places) ? places.map((place) => formatPlace(place, false)) : [];
   } catch {
     return mockPlaces;
   }
 }
-

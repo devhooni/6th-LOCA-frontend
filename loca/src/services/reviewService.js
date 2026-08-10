@@ -1,34 +1,48 @@
 import { apiClient } from "@/src/lib/apiClient";
 import { mockReviews } from "@/src/mocks/reviews";
 
-function toBackendCompanion(val) {
-  if (!val) return "ALONE";
-  const s = String(val).toLowerCase();
-  if (s.includes("혼자") || s === "alone") return "ALONE";
-  if (s.includes("친구") || s === "friend") return "FRIEND";
-  if (s.includes("데이트") || s === "lover" || s === "date") return "LOVER";
-  if (s.includes("가족") || s === "family") return "FAMILY";
-  return "ETC";
+const COMPANION_TO_API = {
+  alone: "ALONE",
+  friend: "FRIEND",
+  lover: "LOVER",
+  date: "LOVER",
+  family: "FAMILY",
+};
+
+const COMPANION_TO_UI = {
+  ALONE: "혼자",
+  FRIEND: "친구와",
+  LOVER: "데이트",
+  FAMILY: "가족",
+  ETC: "기타",
+};
+
+function toBackendCompanion(value) {
+  if (!value) return "ALONE";
+  const normalized = String(value).toLowerCase();
+
+  if (normalized.includes("혼자")) return "ALONE";
+  if (normalized.includes("친구")) return "FRIEND";
+  if (normalized.includes("데이트")) return "LOVER";
+  if (normalized.includes("가족")) return "FAMILY";
+
+  return COMPANION_TO_API[normalized] ?? "ETC";
 }
 
-function toUiCompanion(enumVal) {
-  switch (enumVal) {
-    case "ALONE":
-      return "혼자";
-    case "FRIEND":
-      return "친구와";
-    case "LOVER":
-      return "데이트";
-    case "FAMILY":
-      return "가족";
-    default:
-      return "기타";
-  }
+function toUiCompanion(value) {
+  return COMPANION_TO_UI[value] ?? COMPANION_TO_UI.ETC;
+}
+
+function formatDate(createdAt) {
+  if (!createdAt) return "2024.05.20";
+  return new Date(createdAt).toISOString().split("T")[0].replace(/-/g, ".");
 }
 
 export function formatReview(raw) {
   if (!raw) return null;
+
   const id = raw.reviewId ?? raw.visitId ?? raw.id;
+
   return {
     ...raw,
     id: String(id),
@@ -44,9 +58,7 @@ export function formatReview(raw) {
     memory: raw.title ?? "",
     review: raw.title ?? "",
     images: raw.imageUrls ?? [],
-    date: raw.createdAt
-      ? new Date(raw.createdAt).toISOString().split("T")[0].replace(/-/g, ".")
-      : "2024.05.20",
+    date: formatDate(raw.createdAt),
   };
 }
 
@@ -58,10 +70,12 @@ export async function getPlaceReviews(placeId) {
     const userReviews = await apiClient("/api/users/me/reviews", { fallback: [] });
     if (Array.isArray(userReviews) && userReviews.length > 0) {
       const filtered = userReviews
-        .filter((r) => String(r.placeId) === String(placeId))
+        .filter((review) => String(review.placeId) === String(placeId))
         .map(formatReview);
+
       if (filtered.length > 0) return filtered;
     }
+
     return finalFallback;
   } catch {
     return finalFallback;
@@ -70,10 +84,11 @@ export async function getPlaceReviews(placeId) {
 
 export async function getReviewsMe() {
   try {
-    const res = await apiClient("/api/users/me/reviews", { fallback: [] });
-    if (Array.isArray(res) && res.length > 0) {
-      return res.map(formatReview);
+    const reviews = await apiClient("/api/users/me/reviews", { fallback: [] });
+    if (Array.isArray(reviews) && reviews.length > 0) {
+      return reviews.map(formatReview);
     }
+
     return mockReviews;
   } catch {
     return mockReviews;
@@ -82,27 +97,33 @@ export async function getReviewsMe() {
 
 export async function getReviewById(visitId) {
   try {
-    const res = await apiClient(`/api/users/me/reviews/${visitId}`);
-    return formatReview(res);
+    const review = await apiClient(`/api/users/me/reviews/${visitId}`);
+    return formatReview(review);
   } catch {
     return mockReviews[0];
   }
 }
 
-export async function createReview(payload) {
-  const companionEnum = toBackendCompanion(payload.companion);
-  const numericPlaceId = typeof payload.placeId === "number" ? payload.placeId : (parseInt(payload.placeId, 10) || 101);
+function buildReviewBody(payload) {
+  const numericPlaceId =
+    typeof payload.placeId === "number"
+      ? payload.placeId
+      : parseInt(payload.placeId, 10) || 101;
 
-  const body = {
+  return {
     placeId: numericPlaceId,
     title: payload.title || payload.review || "장소 방문 기록",
-    companion: companionEnum,
+    companion: toBackendCompanion(payload.companion),
     keywords: payload.keywords?.length ? payload.keywords : [payload.companion || "혼자"],
     atmosphereTags: payload.atmosphereTags?.length ? payload.atmosphereTags : ["분위기"],
     imageUrls: payload.images || [],
   };
+}
 
-  const res = await apiClient("/api/users/me/reviews", {
+export async function createReview(payload) {
+  const body = buildReviewBody(payload);
+
+  const review = await apiClient("/api/users/me/reviews", {
     method: "POST",
     body: JSON.stringify(body),
     fallback: {
@@ -112,23 +133,13 @@ export async function createReview(payload) {
     },
   });
 
-  return formatReview(res);
+  return formatReview(review);
 }
 
 export async function updateReview(visitId, payload) {
-  const companionEnum = toBackendCompanion(payload.companion);
-  const numericPlaceId = typeof payload.placeId === "number" ? payload.placeId : (parseInt(payload.placeId, 10) || 101);
+  const body = buildReviewBody(payload);
 
-  const body = {
-    placeId: numericPlaceId,
-    title: payload.title || payload.review || "장소 방문 기록",
-    companion: companionEnum,
-    keywords: payload.keywords || [],
-    atmosphereTags: payload.atmosphereTags || [],
-    imageUrls: payload.images || [],
-  };
-
-  const res = await apiClient(`/api/users/me/reviews/${visitId}`, {
+  const review = await apiClient(`/api/users/me/reviews/${visitId}`, {
     method: "PUT",
     body: JSON.stringify(body),
     fallback: {
@@ -138,7 +149,7 @@ export async function updateReview(visitId, payload) {
     },
   });
 
-  return formatReview(res);
+  return formatReview(review);
 }
 
 export async function deleteReview(visitId) {
@@ -147,4 +158,3 @@ export async function deleteReview(visitId) {
     fallback: undefined,
   });
 }
-

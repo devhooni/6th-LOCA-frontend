@@ -36,7 +36,7 @@ export default function PlaceDetailPage() {
     return (
       <AppShell>
         <div className="wire-panel p-8 text-sm font-semibold text-zinc-500">
-          장소를 찾을 수 없어요.
+          장소를 찾을 수 없습니다.
         </div>
       </AppShell>
     );
@@ -45,7 +45,7 @@ export default function PlaceDetailPage() {
   return (
     <AppShell>
       <Link className="inline-flex h-10 items-center text-sm font-bold text-zinc-500 hover:text-black" to="/explore">
-        ← Explore로 돌아가기
+        Explore로 돌아가기
       </Link>
 
       <section className="mt-6 grid gap-8 lg:grid-cols-[1fr_420px]">
@@ -88,18 +88,14 @@ export default function PlaceDetailPage() {
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_1.4fr]">
-            <Button variant="secondary">
-              ♡ 저장하기
-            </Button>
-            <Button href={`/review/write?placeId=${place.id}`}>
-              이 장소 기록하기
-            </Button>
+            <Button variant="secondary">저장하기</Button>
+            <Button href={`/review/write?placeId=${place.id}`}>이 장소 기록하기</Button>
           </div>
         </aside>
       </section>
 
       <section className="mt-12">
-        <h2 className="text-xl font-black">방문자 기록 ({reviews.length})</h2>
+        <h2 className="text-xl font-black">방문 기록 ({reviews.length})</h2>
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           {reviews.map((review) => (
             <article className="wire-panel p-5" key={review.id}>

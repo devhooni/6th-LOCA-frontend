@@ -4,24 +4,39 @@ import { Button } from "@/src/components/common/Button";
 import { KakaoMap } from "@/src/components/map/KakaoMap";
 import { createPlace } from "@/src/services/placeService";
 
-const defaultLocation = {
+const DEFAULT_LOCATION = {
   lat: "37.5563",
   lng: "126.9236",
 };
+
+const PLACE_PREVIEW_IMAGE =
+  "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=80";
 
 export function PlaceNewClient() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [lat, setLat] = useState(defaultLocation.lat);
-  const [lng, setLng] = useState(defaultLocation.lng);
+  const [lat, setLat] = useState(DEFAULT_LOCATION.lat);
+  const [lng, setLng] = useState(DEFAULT_LOCATION.lng);
   const [visibility, setVisibility] = useState("public");
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
 
+  const previewPlace = {
+    id: "preview",
+    name: name || "선택한 위치",
+    lat: Number(lat),
+    lng: Number(lng),
+  };
+
   const handleMapClick = ({ lat: clickedLat, lng: clickedLng }) => {
     setLat(String(clickedLat));
     setLng(String(clickedLng));
+  };
+
+  const handlePrivateClick = () => {
+    setVisibility("private");
+    window.alert("Private 장소 등록은 추후 기능으로 연결할 예정입니다.");
   };
 
   const save = async () => {
@@ -33,7 +48,7 @@ export function PlaceNewClient() {
     }
 
     if (visibility === "private") {
-      window.alert("추후 기능 출시 예정입니다.");
+      window.alert("Private 장소 등록은 추후 기능으로 연결할 예정입니다.");
       return;
     }
 
@@ -48,9 +63,8 @@ export function PlaceNewClient() {
         address: address || "지도에서 선택한 위치",
         lat: Number(lat),
         lng: Number(lng),
-        description: "등록된 장소입니다.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=80",
+        description: "등록한 장소입니다.",
+        imageUrl: PLACE_PREVIEW_IMAGE,
         tagIds: ["추천"],
         tags: ["추천"],
         visibility,
@@ -73,7 +87,7 @@ export function PlaceNewClient() {
         <div>
           <h1 className="text-4xl font-black">장소 추가</h1>
           <p className="mt-3 text-base font-semibold text-zinc-500">
-            지도를 클릭하여 위도/경도를 선택하거나 정보를 직접 입력하여 새로운 장소를 등록하세요.
+            지도에서 위치를 선택하거나 정보를 직접 입력해 새로운 장소를 등록하세요.
           </p>
         </div>
         <button
@@ -86,15 +100,18 @@ export function PlaceNewClient() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr]">
         <section className="wire-panel overflow-hidden bg-zinc-50 p-2">
-          <div className="mb-2 flex items-center justify-between px-3 pt-2">
-            <span className="text-xs font-black text-zinc-500">📍 지도 클릭으로 위도/경도 자동 선택</span>
-            <span className="text-xs font-bold text-zinc-400">위도: {lat} | 경도: {lng}</span>
+          <div className="mb-2 flex flex-col gap-1 px-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs font-black text-zinc-500">지도 클릭으로 위도/경도 자동 선택</span>
+            <span className="text-xs font-bold text-zinc-400">
+              위도: {lat} | 경도: {lng}
+            </span>
           </div>
           <div className="h-[480px] w-full">
             <KakaoMap
+              fallbackHint="지도를 클릭하면 위도와 경도가 자동으로 입력됩니다."
               onMapClick={handleMapClick}
-              places={[{ id: "preview", name: name || "선택한 지점", lat: Number(lat), lng: Number(lng) }]}
-              selectedPlace={{ id: "preview", lat: Number(lat), lng: Number(lng) }}
+              places={[previewPlace]}
+              selectedPlace={previewPlace}
             />
           </div>
         </section>
@@ -126,7 +143,7 @@ export function PlaceNewClient() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-bold" htmlFor="place-lat">
-              위도 (Lat)
+              위도
               <input
                 className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
                 id="place-lat"
@@ -136,7 +153,7 @@ export function PlaceNewClient() {
               />
             </label>
             <label className="block text-sm font-bold" htmlFor="place-lng">
-              경도 (Lng)
+              경도
               <input
                 className="mt-2 h-12 w-full rounded-lg border border-[var(--border)] bg-white px-4 outline-none focus:border-zinc-500"
                 id="place-lng"
@@ -148,42 +165,35 @@ export function PlaceNewClient() {
           </div>
 
           <div className="mt-6">
-            <p className="text-sm font-bold">공개 설정 (Public / Private 구분)</p>
+            <p className="text-sm font-bold">공개 설정</p>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <button
                 className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
                   visibility === "public"
-                    ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-600"
+                    ? "border-zinc-950 bg-zinc-950 text-white ring-2 ring-zinc-950"
                     : "border-zinc-200 bg-white hover:bg-zinc-50"
                 }`}
                 onClick={() => setVisibility("public")}
                 type="button"
               >
-                <span className="flex items-center gap-1.5 text-sm font-black text-emerald-900">
-                  🌐 전체 공개 (Public)
-                </span>
-                <span className="text-xs font-semibold text-zinc-500">
-                  모든 사용자가 볼 수 있는 공개 장소로 추가됩니다.
+                <span className="text-sm font-black">공유 가능</span>
+                <span className={`text-xs font-semibold ${visibility === "public" ? "text-zinc-300" : "text-zinc-500"}`}>
+                  다른 사용자가 볼 수 있는 장소로 등록합니다.
                 </span>
               </button>
 
               <button
                 className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all ${
                   visibility === "private"
-                    ? "border-purple-600 bg-purple-50/50 ring-2 ring-purple-600"
+                    ? "border-zinc-950 bg-zinc-950 text-white ring-2 ring-zinc-950"
                     : "border-zinc-200 bg-white hover:bg-zinc-50"
                 }`}
-                onClick={() => {
-                  setVisibility("private");
-                  window.alert("추후 기능 출시 예정입니다.");
-                }}
+                onClick={handlePrivateClick}
                 type="button"
               >
-                <span className="flex items-center gap-1.5 text-sm font-black text-purple-900">
-                  🔒 나만 보기 (Private)
-                </span>
-                <span className="text-xs font-semibold text-zinc-500">
-                  나만의 개인 장소로 등록합니다. (JWT 인증 필요)
+                <span className="text-sm font-black">나만 보기</span>
+                <span className={`text-xs font-semibold ${visibility === "private" ? "text-zinc-300" : "text-zinc-500"}`}>
+                  개인 장소로 저장하는 흐름입니다.
                 </span>
               </button>
             </div>
@@ -197,4 +207,3 @@ export function PlaceNewClient() {
     </div>
   );
 }
-
