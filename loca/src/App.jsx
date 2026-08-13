@@ -1,43 +1,39 @@
-import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LoginPage from "./pages/Login";
-import OnboardingPage from "./pages/Onboarding";
-import HomePage from "./pages/Home";
-import ExplorePage from "./pages/Explore";
-import ForYouPage from "./pages/ForYou";
-import ContributorsPage from "./pages/Contributors";
-import MapPage from "./pages/Map";
-import MyPage from "./pages/My";
-import ReviewWritePage from "./pages/ReviewWrite";
-import PlaceNewPage from "./pages/PlaceNew";
-import PlaceDetailPage from "./pages/PlaceDetail";
-import CollectionsPage from "./pages/Collections";
-import CollectionDetailPage from "./pages/CollectionDetail";
-import AdminPage from "./pages/AdminDashboard";
-import AdminPlacesPage from "./pages/AdminPlaces";
-import AdminTagsPage from "./pages/AdminTags";
+import { Routes, Route } from "react-router-dom";
+import { AppShell } from "./components/layout/AppShell";
+import ReviewPage from "./pages/ReviewPage";
+
+function Home() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <h1 className="text-3xl font-black text-[var(--color-brand-primary)] tracking-tight">LOCA</h1>
+      <p className="mt-4 text-sm font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
+        SAVE YOUR STORY · SHARE YOUR SPOTS
+      </p>
+      
+      {/* Placeholder Content to demonstrate scrolling */}
+      <div className="mt-12 w-full max-w-sm space-y-4">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="w-full h-32 rounded-2xl bg-[var(--color-neutral-surface)] border border-[var(--color-neutral-border)] shadow-sm p-5 flex items-center justify-center">
+            <span className="text-[var(--color-text-muted)] font-semibold">Feed Item {i}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <AppShell>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/" element={<HomePage />} />
-        <Route path="/explore" element={<ExplorePage />} />
-        <Route path="/for-you" element={<ForYouPage />} />
-        <Route path="/contributors" element={<ContributorsPage />} />
-        <Route path="/map" element={<MapPage />} />
-        <Route path="/my" element={<MyPage />} />
-        <Route path="/review/write" element={<ReviewWritePage />} />
-        <Route path="/place/new" element={<PlaceNewPage />} />
-        <Route path="/place/:id" element={<PlaceDetailPage />} />
-        <Route path="/collections" element={<CollectionsPage />} />
-        <Route path="/collections/:id" element={<CollectionDetailPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/places" element={<AdminPlacesPage />} />
-        <Route path="/admin/tags" element={<AdminTagsPage />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/review" element={<ReviewPage />} />
+        <Route path="*" element={
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <p className="text-lg font-bold text-[var(--color-text-secondary)]">Coming Soon</p>
+          </div>
+        } />
       </Routes>
-    </BrowserRouter>
+    </AppShell>
   );
 }
