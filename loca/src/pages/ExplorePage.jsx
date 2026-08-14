@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { Navigation, MapPin, Loader2, X, ExternalLink, Tag } from "lucide-react";
 import { fetchExploreRecommendations, fetchPublicPlaceDetail, fetchPrivatePlaces } from "../services/placeService";
 
 export default function ExplorePage() {
+  const location = useLocation();
+  const targetPlaceFromState = location.state?.place;
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const userMarkerRef = useRef(null);
@@ -300,9 +303,14 @@ export default function ExplorePage() {
           setTimeout(() => {
             map.relayout();
             map.setCenter(defaultCenter);
-            moveToMyLocation(map, true);
-            // 초기 접속 시 기본 선택된 '개인' 탭의 마커 및 목록 자동 로드
-            handleSelectPrivate();
+            
+            if (targetPlaceFromState) {
+              handleSelectPlace(targetPlaceFromState);
+            } else {
+              moveToMyLocation(map, true);
+              // 초기 접속 시 기본 선택된 '개인' 탭의 마커 및 목록 자동 로드
+              handleSelectPrivate();
+            }
           }, 100);
         });
       } else {

@@ -469,6 +469,83 @@ export async function fetchMyReviews() {
   return await response.json();
 }
 
+// 리뷰 삭제 API 호출 (DELETE /api/users/me/reviews/{visitId})
+export async function deleteReview(visitId) {
+  const isDev = import.meta.env.DEV;
+  const url = isDev
+    ? `/api/users/me/reviews/${visitId}`
+    : `${BASE_DOMAIN}/api/users/me/reviews/${visitId}`;
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+  }
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "리뷰 삭제 실패");
+    throw new Error(errorMsg);
+  }
+
+  return true;
+}
+
+// 리뷰 등록 API 호출 (POST /api/users/me/reviews) -> JWT Bearer 토큰 연동
+export async function createReview({
+  placeId,
+  title,
+  content,
+  companion,
+  visitedAt,
+  keywords,
+  tagIds,
+  imageUrls,
+}) {
+  const isDev = import.meta.env.DEV;
+  const url = isDev ? "/api/users/me/reviews" : `${BASE_DOMAIN}/api/users/me/reviews`;
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`,
+  };
+
+  const bodyData = {
+    placeId: parseInt(placeId, 10),
+    title: title || "",
+    content: content || "",
+    companion: companion || "ALONE",
+    visitedAt: visitedAt || new Date().toISOString(),
+    keywords: Array.isArray(keywords) ? keywords : [],
+    tagIds: Array.isArray(tagIds) ? tagIds.map((id) => parseInt(id, 10)) : [],
+    imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(bodyData),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "리뷰 등록 실패");
+    throw new Error(errorMsg);
+  }
+
+  return await response.json();
+}
+
 // 전체 태그 목록 조회 API 호출 (GET /api/tags) -> JWT Bearer 토큰 필요
 export async function fetchTags() {
   const isDev = import.meta.env.DEV;
