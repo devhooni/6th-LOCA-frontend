@@ -3,30 +3,25 @@ import { cn } from "@/src/lib/utils";
 
 export function TopBar({ className }) {
   return (
-    <header
+    <header role="banner" aria-label="LOCA navigation"
       className={cn(
-        "fixed top-0 left-1/2 z-50 -translate-x-1/2 w-full max-w-[430px]",
-        "flex h-14 items-center justify-between px-4",
-        "bg-[var(--color-neutral-surface)]/80 backdrop-blur-md",
+        "w-full h-16 flex items-center justify-between px-4 flex-none z-10",
+        "bg-[var(--color-brand-soft)]/95 backdrop-blur-md shadow-sm",
         "border-b border-[var(--color-neutral-border)]",
         className
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-1.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-brand-primary)] text-[var(--color-neutral-surface)] shadow-sm">
-          <MapPin size={18} strokeWidth={2.5} />
-        </div>
-        <span className="text-xl font-black tracking-tight text-[var(--color-brand-primary)]">
-          LOCA
-        </span>
+      <div className="flex items-center gap-2 h-full py-2 transition-transform duration-200 hover:scale-105 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)]">
+        <img src="/brand-icon.svg" alt="LOCA" className="h-6 w-6 object-contain" />
+        <span className="text-lg font-semibold text-[var(--color-brand-primary)]">LOCA</span>
       </div>
 
       {/* Right Actions */}
       <div className="flex items-center">
-        <button className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-neutral-background)] hover:text-[var(--color-brand-primary)] active:scale-95">
-          <Bell size={20} strokeWidth={2} />
-        </button>
+        <button className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-neutral-background)] hover:text-[var(--color-brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)] active:scale-95" aria-label="Notifications">
+            <Bell size={20} strokeWidth={2} />
+          </button>
       </div>
     </header>
   );

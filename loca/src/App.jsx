@@ -1,33 +1,29 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import ReviewPage from "./pages/ReviewPage";
-
-function Home() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      <h1 className="text-3xl font-black text-[var(--color-brand-primary)] tracking-tight">LOCA</h1>
-      <p className="mt-4 text-sm font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
-        SAVE YOUR STORY · SHARE YOUR SPOTS
-      </p>
-      
-      {/* Placeholder Content to demonstrate scrolling */}
-      <div className="mt-12 w-full max-w-sm space-y-4">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="w-full h-32 rounded-2xl bg-[var(--color-neutral-surface)] border border-[var(--color-neutral-border)] shadow-sm p-5 flex items-center justify-center">
-            <span className="text-[var(--color-text-muted)] font-semibold">Feed Item {i}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import OnboardingPage from "./pages/OnboardingPage";
+import ExplorePage from "./pages/ExplorePage";
+import AddPlacePage from "./pages/AddPlacePage";
+import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
+import MyPage from "./pages/MyPage";
+import AdminPage from "./pages/AdminPage";
+import ForYouPage from "./pages/ForYouPage";
 
 export default function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Navigate to="/explore" replace />} />
+        <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/foryou" element={<ForYouPage />} />
+        <Route path="/add" element={<AddPlacePage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         <Route path="/review" element={<ReviewPage />} />
+        <Route path="/my" element={<MyPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <p className="text-lg font-bold text-[var(--color-text-secondary)]">Coming Soon</p>

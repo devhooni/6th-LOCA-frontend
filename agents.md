@@ -17,9 +17,9 @@
 
 ## Current Implementation Status
 ### 1. Layout (`src/components/layout/`)
-- **TopBar.jsx**: 상단 고정 헤더. 좌측에 `LOCA` 로고 및 `MapPin` 아이콘, 우측에 알림 아이콘 배치. (반투명 blur 효과 적용)
-- **BottomBar.jsx**: 하단 고정 네비게이션 바. 5개의 메뉴(`explore`, `for you`, `+`, `search`, `my`) 배치. 중앙 `+` 버튼은 브랜드 컬러(`#6366f1`) 플로팅 스타일 적용.
-- **AppShell.jsx**: `TopBar`와 `BottomBar`를 감싸고, 중앙 메인 콘텐츠 영역이 스크롤되도록 하는 모바일 웹 뷰 레이아웃 래퍼.
+- **TopBar.jsx**: 상단 헤더. `flex-none`으로 영역 점유. 좌측에 `brand-icon.svg` 및 `LOCA` 로고, 우측에 알림 아이콘 배치.
+- **BottomBar.jsx**: 하단 네비게이션 바. `flex-none`으로 영역 점유. 5개 메뉴(`explore`, `for you`, `+`, `review`, `my`) 배치.
+- **AppShell.jsx**: `TopBar`, 중앙 `main`, `BottomBar`를 각각 별도의 독립 `div` 박스로 수직 분리하여 절대 영역이 겹치지 않게(Non-overlapping Flex Layout) 구성. 중앙 `main` 영역만 `flex-1 overflow-y-auto`로 스크롤됨.
 
 ### 2. Core Features to be Implemented (기능 명세 기억용)
 - **장소 관리**: Public / Private 장소 구분, 카카오 맵 API 기반 좌표 및 장소 정보 저장
@@ -30,3 +30,4 @@
 ## Notes for AI Agents
 - **규칙 1**: 백엔드 API 호출 시, 에러가 날 경우 억지로 Mock 데이터를 띄워 성공한 척 덮어버리는(Fallback) 로직은 **절대 금지**입니다. 실서버 에러는 정직하게 프론트엔드로 전달되어야 합니다.
 - **규칙 2**: 화면을 설계할 때 모바일 환경을 최우선으로 고려하며(Mobile-First), `AppShell` 레이아웃 내부의 `main` 태그 안에서 렌더링되도록 구성합니다.
+- **규칙 3**: 레이아웃은 `TopBar` / `AppShell Main` / `BottomBar` 3단계 독립 `div` 박스 구조를 유지하여 요소 간 영역이 겹치지 않도록 만듭니다.

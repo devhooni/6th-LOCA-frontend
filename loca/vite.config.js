@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://sixth-loca-backend-3-12qz.onrender.com",
+        target: "https://sixth-loca-backend-5-trku.onrender.com",
         changeOrigin: true,
         secure: false,
       },

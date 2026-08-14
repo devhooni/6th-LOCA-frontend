@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
 
 const navItems = [
-  { id: "explore", icon: Compass, label: "explore", path: "/" },
+  { id: "explore", icon: Compass, label: "explore", path: "/explore" },
   { id: "foryou", icon: Sparkles, label: "for you", path: "/foryou" },
   { id: "add", icon: Plus, label: "", path: "/add", isPrimary: true },
   { id: "review", icon: PenLine, label: "review", path: "/review" },
@@ -17,7 +17,7 @@ export function BottomBar({ className }) {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-1/2 z-50 -translate-x-1/2 w-full max-w-[430px]",
+        "w-full flex-none z-10",
         "bg-[var(--color-neutral-surface)]/90 backdrop-blur-lg",
         "border-t border-[var(--color-neutral-border)]",
         "pb-safe", // for iOS safe area if needed
@@ -29,11 +29,23 @@ export function BottomBar({ className }) {
           const isActive = currentPath === item.path;
           const IconComponent = item.icon;
 
+          const handleNavClick = (e, path) => {
+            const event = new CustomEvent("loca-navigation-intercept", {
+              detail: { to: path },
+              cancelable: true,
+            });
+            const allowed = window.dispatchEvent(event);
+            if (!allowed) {
+              e.preventDefault();
+            }
+          };
+
           if (item.isPrimary) {
             return (
               <Link
                 key={item.id}
                 to={item.path}
+                onClick={(e) => handleNavClick(e, item.path)}
                 aria-label="Add"
                 className="group relative flex flex-col items-center justify-center active:scale-95 transition-transform"
               >
@@ -51,6 +63,7 @@ export function BottomBar({ className }) {
             <Link
               key={item.id}
               to={item.path}
+              onClick={(e) => handleNavClick(e, item.path)}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 w-16 transition-colors active:scale-95",
                 isActive
