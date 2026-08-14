@@ -1,4 +1,4 @@
-const BASE_DOMAIN = (import.meta.env.VITE_PUBLIC_API_BASE_URL || "").replace(/\/swagger-ui\/?$/, "");
+const BASE_DOMAIN = (import.meta.env.VITE_PUBLIC_API_BASE_URL || "https://sixth-loca-backend-5-trku.onrender.com").replace(/\/swagger-ui\/?$/, "");
 
 // 백엔드 에러 응답 객체/텍스트로부터 실제 메시지를 추출하는 공통 헬퍼 함수
 async function extractErrorMessage(response, defaultMsg) {
