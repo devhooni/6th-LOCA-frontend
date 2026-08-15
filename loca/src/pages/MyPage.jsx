@@ -25,6 +25,12 @@ import {
   deleteReview,
 } from "../services/placeService";
 
+import aloneImg from "/imgs/alone.png";
+import friendsImg from "/imgs/friends.png";
+import coupleImg from "/imgs/couple.png";
+import familyImg from "/imgs/family.png";
+import etcImg from "/imgs/etc.png";
+
 export default function MyPage() {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState("");
@@ -229,6 +235,14 @@ export default function MyPage() {
     navigate("/onboarding", { replace: true });
   };
 
+  const companionConfigMap = {
+    ALONE: { label: "혼자", img: aloneImg },
+    FRIEND: { label: "친구와", img: friendsImg },
+    LOVER: { label: "연인과", img: coupleImg },
+    FAMILY: { label: "가족과", img: familyImg },
+    ETC: { label: "기타", img: etcImg },
+  };
+
   const companionLabelMap = {
     ALONE: "혼자",
     FRIEND: "친구와",
@@ -428,51 +442,71 @@ export default function MyPage() {
                   }
                 };
 
+                const compConfig = companionConfigMap[review.companion];
+
                 return (
                   <div
                     key={reviewId}
-                    className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer"
+                    className="p-4 bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:border-gray-200 transition-all cursor-pointer"
                     onClick={handleNavigateToPlace}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-gray-500 mb-1">{placeName}</span>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-sm font-bold text-[#111]">
-                            {review.title || "제목 없음"}
-                          </h3>
-                          {review.companion && (
-                            <span className="text-xs text-gray-500">
-                              · {companionLabelMap[review.companion] || review.companion}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* 좌측: 장소명, 뱃지, 제목, 방문날짜, 내용 미리보기 */}
+                      <div className="flex flex-col min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center space-x-1.5 mb-0.5">
+                          <span className="text-xs font-semibold text-gray-500 truncate">
+                            {placeName}
+                          </span>
+                          {compConfig && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-bold">
+                              {compConfig.label}
                             </span>
                           )}
                         </div>
+
+                        <h3 className="text-sm font-bold text-[#111] truncate">
+                          {review.title || "제목 없음"}
+                        </h3>
+
                         {review.visitedAt && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(review.visitedAt).toLocaleDateString("ko-KR")}
+                          <p className="text-[11px] text-gray-400">
+                            {new Date(review.visitedAt).toLocaleDateString("ko-KR")} 방문
                           </p>
                         )}
+
+                        <p className="text-xs text-gray-600 line-clamp-2 pt-1">
+                          {review.content}
+                        </p>
                       </div>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteReview(review);
-                        }}
-                        disabled={isDeletingThis}
-                        className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-50"
-                      >
-                        {isDeletingThis ? (
-                          <Loader2 size={16} className="animate-spin text-red-500" />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
+                      {/* 우측: 큼직한 w-24 h-24 마스코트 썸네일 & 삭제 버튼 */}
+                      <div className="flex flex-col items-end space-y-2 flex-none">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteReview(review);
+                          }}
+                          disabled={isDeletingThis}
+                          className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-50 transition-colors"
+                        >
+                          {isDeletingThis ? (
+                            <Loader2 size={15} className="animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 size={15} />
+                          )}
+                        </button>
 
-                    <p className="text-sm text-gray-700 mt-3 line-clamp-2">
-                      {review.content}
-                    </p>
+                        {compConfig && (
+                          <div className="w-24 h-24 rounded-2xl bg-gray-50/80 border border-gray-100 flex items-center justify-center p-2 overflow-hidden shadow-2xs">
+                            <img
+                              src={compConfig.img}
+                              alt={compConfig.label}
+                              className="w-full h-full object-contain filter drop-shadow-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                     {Array.isArray(review.keywords) && review.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
