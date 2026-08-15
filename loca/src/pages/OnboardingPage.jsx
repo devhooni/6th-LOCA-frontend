@@ -62,7 +62,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full min-h-screen px-6 py-12 text-center bg-white overflow-hidden select-none">
+    <div className="relative flex flex-col items-center justify-between h-full w-full px-6 py-10 text-center bg-white overflow-hidden select-none">
       {/* 깔끔하게 고정 배치된 정격자(Static Grid) 배경 아이콘들 (opacity: 0.35) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 opacity-35">
         {gridItems.map(({ Icon, size, color, left, top }, index) => (

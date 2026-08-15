@@ -6,7 +6,7 @@ export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center select-none py-8">
+    <div className="flex flex-col items-center justify-center h-full w-full px-6 text-center select-none py-8">
       {/* 길을 잃은 로카프렌즈 4인방 404 일러스트 */}
       <div className="w-full max-w-[320px] h-48 mb-4 rounded-2xl overflow-hidden flex items-center justify-center">
         <img

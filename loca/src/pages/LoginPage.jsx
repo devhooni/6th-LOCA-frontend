@@ -44,7 +44,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-6 py-8 select-none">
+    <div className="flex flex-col h-full w-full bg-white px-6 py-6 select-none overflow-y-auto">
       {/* Back */}
       <button
         onClick={() => navigate(-1)}
