@@ -1,28 +1,19 @@
-import { MapPin, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
 export function TopBar({ className }) {
   return (
-    <header role="banner" aria-label="LOCA navigation"
+    <header
       className={cn(
-        "w-full h-16 flex items-center justify-between px-4 flex-none z-10",
-        "bg-[var(--color-brand-soft)]/95 backdrop-blur-md shadow-sm",
-        "border-b border-[var(--color-neutral-border)]",
+        "w-full h-12 flex items-center justify-between px-5 flex-none",
+        "bg-white border-b border-[var(--color-neutral-border)]",
         className
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2 h-full py-2 transition-transform duration-200 hover:scale-105 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)]">
-        <img src="/brand-icon.svg" alt="LOCA" className="h-6 w-6 object-contain" />
-        <span className="text-lg font-semibold text-[var(--color-brand-primary)]">LOCA</span>
-      </div>
-
-      {/* Right Actions */}
-      <div className="flex items-center">
-        <button className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-neutral-background)] hover:text-[var(--color-brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)] active:scale-95" aria-label="Notifications">
-            <Bell size={20} strokeWidth={2} />
-          </button>
-      </div>
+      <span className="text-base font-bold text-[var(--color-text-primary)] tracking-tight">LOCA</span>
+      <button className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors" aria-label="알림">
+        <Bell size={20} strokeWidth={1.8} />
+      </button>
     </header>
   );
 }

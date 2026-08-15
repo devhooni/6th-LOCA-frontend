@@ -15,8 +15,6 @@ import {
   Plus,
   MessageSquareText,
   Calendar,
-  Tag as TagIcon,
-  Image as ImageIcon,
 } from "lucide-react";
 import {
   fetchPrivatePlaces,
@@ -64,7 +62,7 @@ export default function MyPage() {
   // 장소 ID별 장소 객체/이름 매핑 맵
   const [placeMap, setPlaceMap] = useState({});
 
-  // 내 정보 및 내가 생성한 커스텀 장소 목록 불러오기 (GET /api/places/custom & GET /api/places/public)
+  // 내 정보 및 내가 생성한 커스텀 장소 목록 불러오기
   const loadMyPlaces = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -107,7 +105,7 @@ export default function MyPage() {
     }
   };
 
-  // 내 작성 리뷰 목록 불러오기 (GET /api/users/me/reviews)
+  // 내 작성 리뷰 목록 불러오기
   const loadMyReviews = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -149,7 +147,7 @@ export default function MyPage() {
     setEditError(null);
   };
 
-  // 장소 수정 API 전송 (PUT /api/places/custom/{placeId})
+  // 장소 수정 API 전송
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editingPlace) return;
@@ -188,7 +186,7 @@ export default function MyPage() {
     }
   };
 
-  // 장소 삭제 API 전송 (DELETE /api/places/custom/{placeId})
+  // 장소 삭제 API 전송
   const handleDeletePlace = async (place) => {
     const placeId = place.placeId || place.id;
     if (!window.confirm(`정말로 [${place.name}] 장소를 삭제하시겠습니까?`)) return;
@@ -206,7 +204,7 @@ export default function MyPage() {
     }
   };
 
-  // 리뷰 삭제 API 전송 (DELETE /api/users/me/reviews/{visitId})
+  // 리뷰 삭제 API 전송
   const handleDeleteReview = async (review) => {
     const reviewId = review.reviewId || review.visitId || review.id;
     if (!window.confirm(`정말로 이 리뷰([${review.title}])를 삭제하시겠습니까?`)) return;
@@ -227,6 +225,7 @@ export default function MyPage() {
   const handleConfirmLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("isAdmin");
     navigate("/onboarding", { replace: true });
   };
 
@@ -239,118 +238,96 @@ export default function MyPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50/50 p-4 select-none text-left overflow-y-auto space-y-4">
+    <div className="w-full space-y-5 bg-white flex flex-col h-full select-none text-left overflow-y-auto">
       {/* Header Title */}
       <div>
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">마이페이지</h1>
-        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-          계정 정보, 등록 장소 및 작성한 리뷰를 관리해보세요.
-        </p>
+        <h1 className="text-xl font-bold text-[#111]">마이페이지</h1>
       </div>
 
       {/* User Info Profile Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex items-center space-x-4 flex-none">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-none">
-          <User size={22} />
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-              로그인 계정
-            </span>
+      <div className="flex items-center justify-between bg-white py-2">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+            <User size={24} />
           </div>
-          <div className="mt-1 flex items-center space-x-1.5">
-            <Mail size={14} className="text-gray-400 flex-none" />
-            <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">
-              {userEmail || "로그인이 필요합니다"}
+          <div>
+            <p className="text-base font-bold text-[#111]">
+              {userEmail ? userEmail.split("@")[0] : "사용자"}
             </p>
+            <p className="text-sm text-gray-500">{userEmail || "로그인이 필요합니다"}</p>
           </div>
         </div>
+        
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          로그아웃
+        </button>
       </div>
 
-      {/* 탭 구분: 내가 등록한 장소 vs 내가 작성한 리뷰 */}
-      <div className="flex bg-gray-200/80 p-1 rounded-xl gap-1 border border-gray-300/60">
+      {/* 탭 구분 */}
+      <div className="flex border-b border-gray-100">
         <button
           onClick={() => setActiveTab("places")}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`flex-1 py-3 text-sm transition-all text-center ${
             activeTab === "places"
-              ? "bg-white text-gray-900 shadow-xs"
-              : "text-gray-600 hover:text-gray-900"
+              ? "text-[#111] font-bold border-b-2 border-[#111]"
+              : "text-gray-400"
           }`}
         >
-          <MapPin size={15} />
-          <span>등록 장소 ({myPlaces.length})</span>
+          등록 장소
         </button>
         <button
           onClick={() => setActiveTab("reviews")}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`flex-1 py-3 text-sm transition-all text-center ${
             activeTab === "reviews"
-              ? "bg-white text-gray-900 shadow-xs"
-              : "text-gray-600 hover:text-gray-900"
+              ? "text-[#111] font-bold border-b-2 border-[#111]"
+              : "text-gray-400"
           }`}
         >
-          <MessageSquareText size={15} />
-          <span>작성 리뷰 ({myReviews.length})</span>
+          작성 리뷰
         </button>
       </div>
 
-      {/* TAB 1: 내가 만든 장소들 리스트 섹션 */}
+      {/* TAB 1: 장소 */}
       {activeTab === "places" && (
-        <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3 flex flex-col min-h-0">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-none">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-base font-bold text-gray-900">내가 등록한 장소</h2>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                {myPlaces.length}개
-              </span>
+        <div className="flex flex-col flex-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-sm font-bold text-[#111]">총 {myPlaces.length}개</span>
             </div>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={loadMyPlaces}
                 disabled={isLoadingPlaces}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                title="새로고침"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <RefreshCw size={15} className={isLoadingPlaces ? "animate-spin" : ""} />
+                <RefreshCw size={16} className={isLoadingPlaces ? "animate-spin" : ""} />
               </button>
               <button
                 onClick={() => navigate("/add")}
-                className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-black text-white text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <Plus size={14} />
-                <span>추가</span>
+                <Plus size={18} />
               </button>
             </div>
           </div>
 
-          {/* 에러 메시지 */}
           {placesError && (
-            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center space-x-2 text-xs font-semibold text-rose-600">
-              <AlertCircle size={15} className="flex-none" />
-              <span>{placesError}</span>
-            </div>
+            <div className="text-sm text-red-500 py-2">{placesError}</div>
           )}
 
-          {/* 장소 목록 렌더링 */}
           {isLoadingPlaces ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400 flex-1">
-              <Loader2 className="animate-spin text-indigo-600" size={22} />
-              <span className="text-xs font-medium">내 장소를 불러오는 중...</span>
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+              <Loader2 className="animate-spin" size={20} />
             </div>
           ) : myPlaces.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2 flex-1">
-              <MapPin size={32} className="text-gray-300" />
-              <p className="text-xs font-medium">등록된 장소가 없습니다.</p>
-              <button
-                onClick={() => navigate("/add")}
-                className="text-xs font-bold text-indigo-600 underline cursor-pointer"
-              >
-                새로운 장소 등록하러 가기
-              </button>
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
+              <p className="text-sm">등록된 장소가 없습니다.</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100 overflow-y-auto space-y-2 max-h-[350px]">
+            <div className="space-y-3 pb-6">
               {myPlaces.map((place) => {
                 const placeId = place.placeId || place.id;
                 const isDeletingThis = deletingPlaceId === placeId;
@@ -358,57 +335,36 @@ export default function MyPage() {
                 return (
                   <div
                     key={placeId}
-                    className="pt-2 pb-2 flex items-center justify-between group hover:bg-gray-50/60 p-2 rounded-xl transition-colors"
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100"
                   >
-                    <div className="flex items-start space-x-3 overflow-hidden">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-none mt-0.5">
-                        <MapPin size={18} />
+                    <div className="flex flex-col">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-bold text-[#111]">
+                          {place.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {place.isShareable ? "전체공개" : "나만보기"}
+                        </span>
                       </div>
-                      <div className="flex flex-col overflow-hidden text-left space-y-0.5">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-bold text-gray-900 truncate">
-                            {place.name}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${
-                              place.isShareable
-                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                : "bg-gray-100 text-gray-600 border border-gray-200"
-                            }`}
-                          >
-                            {place.isShareable ? (
-                              <>
-                                <Globe size={10} /> 전체공개
-                              </>
-                            ) : (
-                              <>
-                                <Lock size={10} /> 나만보기
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-gray-500 truncate">{place.address}</p>
-                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{place.address}</p>
                     </div>
 
-                    <div className="flex items-center space-x-1 flex-none ml-2">
+                    <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(place)}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                        title="장소 정보 수정 (PUT)"
+                        className="p-1.5 text-gray-300 hover:text-gray-600"
                       >
-                        <Edit2 size={15} />
+                        <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeletePlace(place)}
                         disabled={isDeletingThis}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
-                        title="장소 삭제 (DELETE)"
+                        className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-50"
                       >
                         {isDeletingThis ? (
-                          <Loader2 size={15} className="animate-spin text-rose-600" />
+                          <Loader2 size={16} className="animate-spin text-red-500" />
                         ) : (
-                          <Trash2 size={15} />
+                          <Trash2 size={16} />
                         )}
                       </button>
                     </div>
@@ -420,62 +376,44 @@ export default function MyPage() {
         </div>
       )}
 
-      {/* TAB 2: 내가 작성한 리뷰 리스트 섹션 (GET /api/users/me/reviews) */}
+      {/* TAB 2: 리뷰 */}
       {activeTab === "reviews" && (
-        <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3 flex flex-col min-h-0">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-none">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-base font-bold text-gray-900">내가 작성한 리뷰</h2>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                {myReviews.length}개
-              </span>
+        <div className="flex flex-col flex-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-sm font-bold text-[#111]">총 {myReviews.length}개</span>
             </div>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={loadMyReviews}
                 disabled={isLoadingReviews}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                title="새로고침"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <RefreshCw size={15} className={isLoadingReviews ? "animate-spin" : ""} />
+                <RefreshCw size={16} className={isLoadingReviews ? "animate-spin" : ""} />
               </button>
               <button
                 onClick={() => navigate("/review")}
-                className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-black text-white text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <Plus size={14} />
-                <span>리뷰 작성</span>
+                <Plus size={18} />
               </button>
             </div>
           </div>
 
-          {/* 에러 메시지 */}
           {reviewsError && (
-            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center space-x-2 text-xs font-semibold text-rose-600">
-              <AlertCircle size={15} className="flex-none" />
-              <span>{reviewsError}</span>
-            </div>
+            <div className="text-sm text-red-500 py-2">{reviewsError}</div>
           )}
 
-          {/* 리뷰 목록 렌더링 */}
           {isLoadingReviews ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400 flex-1">
-              <Loader2 className="animate-spin text-indigo-600" size={22} />
-              <span className="text-xs font-medium">내 리뷰를 불러오는 중...</span>
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+              <Loader2 className="animate-spin" size={20} />
             </div>
           ) : myReviews.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2 flex-1">
-              <MessageSquareText size={32} className="text-gray-300" />
-              <p className="text-xs font-medium">작성한 리뷰가 없습니다.</p>
-              <button
-                onClick={() => navigate("/review")}
-                className="text-xs font-bold text-indigo-600 underline cursor-pointer"
-              >
-                첫 리뷰 작성하러 가기
-              </button>
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
+              <p className="text-sm">작성한 리뷰가 없습니다.</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100 overflow-y-auto space-y-3 max-h-[350px]">
+            <div className="space-y-3 pb-6">
               {myReviews.map((review) => {
                 const reviewId = review.reviewId || review.visitId || review.id;
                 const isDeletingThis = deletingReviewId === reviewId;
@@ -493,35 +431,25 @@ export default function MyPage() {
                 return (
                   <div
                     key={reviewId}
-                    className="pt-3 pb-3 space-y-2 hover:bg-indigo-50/40 p-2.5 rounded-xl transition-all cursor-pointer border border-transparent hover:border-indigo-100 group"
+                    className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer"
                     onClick={handleNavigateToPlace}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1 overflow-hidden">
-                        {/* 리뷰 제목 위 장소 이름 표시 */}
-                        <div className="flex items-center space-x-1.5 text-xs font-bold text-indigo-600">
-                          <MapPin size={13} className="flex-none" />
-                          <span className="truncate group-hover:underline">{placeName}</span>
-                        </div>
-
-                        {/* 리뷰 제목 및 동행인 */}
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-1">{placeName}</span>
                         <div className="flex items-center space-x-2">
-                          <h3 className="text-xs font-bold text-gray-900 truncate">
+                          <h3 className="text-sm font-bold text-[#111]">
                             {review.title || "제목 없음"}
                           </h3>
                           {review.companion && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 flex-none">
-                              {companionLabelMap[review.companion] || review.companion}
+                            <span className="text-xs text-gray-500">
+                              · {companionLabelMap[review.companion] || review.companion}
                             </span>
                           )}
                         </div>
-
                         {review.visitedAt && (
-                          <p className="text-[11px] text-gray-400 flex items-center space-x-1">
-                            <Calendar size={11} />
-                            <span>
-                              방문일: {new Date(review.visitedAt).toLocaleDateString("ko-KR")}
-                            </span>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(review.visitedAt).toLocaleDateString("ko-KR")}
                           </p>
                         )}
                       </div>
@@ -532,31 +460,28 @@ export default function MyPage() {
                           handleDeleteReview(review);
                         }}
                         disabled={isDeletingThis}
-                        className="p-1 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer flex-none ml-2"
-                        title="리뷰 삭제 (DELETE)"
+                        className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-50"
                       >
                         {isDeletingThis ? (
-                          <Loader2 size={15} className="animate-spin text-rose-600" />
+                          <Loader2 size={16} className="animate-spin text-red-500" />
                         ) : (
-                          <Trash2 size={15} />
+                          <Trash2 size={16} />
                         )}
                       </button>
                     </div>
 
-                    {/* 본문 내용 */}
-                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                    <p className="text-sm text-gray-700 mt-3 line-clamp-2">
                       {review.content}
                     </p>
 
-                    {/* 키워드 태그 칩 */}
                     {Array.isArray(review.keywords) && review.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-0.5">
+                      <div className="flex flex-wrap gap-1.5 mt-3">
                         {review.keywords.map((kw, idx) => (
                           <span
                             key={idx}
-                            className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                            className="bg-gray-100 text-gray-600 text-xs rounded-lg px-2 py-0.5"
                           >
-                            #{kw}
+                            {kw}
                           </span>
                         ))}
                       </div>
@@ -569,98 +494,73 @@ export default function MyPage() {
         </div>
       )}
 
-      {/* Logout Action Button */}
-      <div className="flex-none pt-2 pb-2">
-        <button
-          onClick={() => setShowLogoutConfirm(true)}
-          className="w-full py-3 rounded-xl border border-rose-200 bg-rose-50/70 text-rose-600 text-xs font-bold flex items-center justify-center space-x-2 active:scale-98 transition-all hover:bg-rose-100/80 cursor-pointer shadow-xs"
-        >
-          <LogOut size={16} />
-          <span>로그아웃</span>
-        </button>
-      </div>
-
-      {/* 장소 수정 팝업 모달 (PUT /api/places/custom/{placeId}) */}
+      {/* 장소 수정 모달 */}
       {editingPlace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-xl space-y-4 text-left">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">내 장소 수정</h3>
-              <button
-                onClick={() => setEditingPlace(null)}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">장소 이름</label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4">
+            <h3 className="text-base font-bold text-[#111]">장소 수정</h3>
+            
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">장소 이름</label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-black"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">주소</label>
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">주소</label>
                 <input
                   type="text"
                   value={editForm.address}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-black"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">공개 설정</label>
-                <div className="flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">공개 설정</label>
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
                   <button
                     type="button"
                     onClick={() => setEditForm({ ...editForm, isShareable: false })}
-                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      !editForm.isShareable ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"
+                    className={`flex-1 py-1.5 rounded-md text-sm transition-all ${
+                      !editForm.isShareable ? "bg-white text-[#111] font-semibold shadow-sm" : "text-gray-500"
                     }`}
                   >
-                    <Lock size={12} />
                     나만 보기
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditForm({ ...editForm, isShareable: true })}
-                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      editForm.isShareable ? "bg-white text-indigo-600 shadow-xs" : "text-gray-500"
+                    className={`flex-1 py-1.5 rounded-md text-sm transition-all ${
+                      editForm.isShareable ? "bg-white text-[#111] font-semibold shadow-sm" : "text-gray-500"
                     }`}
                   >
-                    <Globe size={12} />
                     전체 공개
                   </button>
                 </div>
               </div>
 
-              {editError && <p className="text-xs font-bold text-rose-500">{editError}</p>}
+              {editError && <p className="text-sm text-red-500">{editError}</p>}
 
               <div className="flex space-x-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingPlace(null)}
-                  className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200"
+                  className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="flex-1 py-2 rounded-xl bg-black text-white text-xs font-bold hover:bg-gray-800 flex items-center justify-center space-x-1 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-[#111] text-white text-sm font-bold flex items-center justify-center"
                 >
-                  {isSubmittingEdit ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <span>수정 완료</span>
-                  )}
+                  {isSubmittingEdit ? <Loader2 size={16} className="animate-spin" /> : "수정 완료"}
                 </button>
               </div>
             </form>
@@ -668,29 +568,26 @@ export default function MyPage() {
         </div>
       )}
 
-      {/* 로그아웃 확인 모달팝업 */}
+      {/* 로그아웃 모달 */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-              <LogOut size={22} />
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center space-y-4">
             <div>
-              <h3 className="text-base font-bold text-gray-900">로그아웃 하시겠습니까?</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                저장된 계정 세션이 삭제되고 초기 온보딩 화면으로 이동합니다.
+              <h3 className="text-base font-bold text-[#111]">로그아웃 하시겠습니까?</h3>
+              <p className="text-sm text-gray-500 mt-2">
+                저장된 계정 정보가 삭제됩니다.
               </p>
             </div>
             <div className="flex space-x-2 pt-2">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold"
               >
                 취소
               </button>
               <button
                 onClick={handleConfirmLogout}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-xs hover:bg-rose-700 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-[#111] text-white text-sm font-bold"
               >
                 로그아웃
               </button>

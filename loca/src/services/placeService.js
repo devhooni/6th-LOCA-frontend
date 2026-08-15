@@ -75,6 +75,18 @@ export async function loginUser({ email, password }) {
     localStorage.setItem("userEmail", email);
   }
 
+  // 백엔드 응답의 isAdmin 플래그 확인 + 관리자 계정 이메일(loca.admin@... 또는 admin@...) 지원
+  const isAdmin = Boolean(
+    data.isAdmin === true ||
+    data.admin === true ||
+    data.is_admin === true ||
+    data.role === "ADMIN" ||
+    data.role === "ROLE_ADMIN" ||
+    (data.roles && data.roles.includes("ADMIN")) ||
+    (email && (email.toLowerCase().includes("admin") || email.toLowerCase().startsWith("loca.admin")))
+  );
+  localStorage.setItem("isAdmin", isAdmin ? "true" : "false");
+
   return data;
 }
 

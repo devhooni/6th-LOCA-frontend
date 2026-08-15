@@ -11,26 +11,23 @@ export function AppShell({ children, className }) {
   const isAdd = location.pathname === "/add";
 
   return (
-    <div className="mx-auto flex h-screen w-full max-w-[430px] border-x border-[var(--color-neutral-border)] flex-col bg-[var(--color-neutral-background)] shadow-2xl overflow-hidden relative">
-      {/* TopBar Box */}
+    <div className="mx-auto flex h-screen w-full max-w-[430px] flex-col bg-white overflow-hidden relative">
       {!hideNav && (
         <div className="flex-none w-full">
           <TopBar />
         </div>
       )}
       
-      {/* AppShell Main Content Box */}
       <main 
         className={cn(
           "flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden",
-          !hideNav && !isExplore && !isAdd && "p-4",
+          !hideNav && !isExplore && !isAdd && "px-5 py-4",
           className
         )}
       >
         {children}
       </main>
 
-      {/* BottomBar Box */}
       {!hideNav && (
         <div className="flex-none w-full">
           <BottomBar />

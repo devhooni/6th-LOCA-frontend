@@ -44,38 +44,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-6 py-6 select-none">
-      {/* Header Back Button */}
-      <div className="flex items-center justify-between pb-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 -ml-2 rounded-full text-[var(--color-text-primary)] hover:bg-gray-100 transition-colors"
-          aria-label="뒤로가기"
-        >
-          <ArrowLeft size={22} />
-        </button>
+    <div className="flex flex-col min-h-screen bg-white px-6 py-8 select-none">
+      {/* Back */}
+      <button
+        onClick={() => navigate(-1)}
+        className="self-start text-gray-400 hover:text-gray-600 transition-colors -ml-1 mb-8"
+        aria-label="뒤로가기"
+      >
+        <ArrowLeft size={22} />
+      </button>
+
+      {/* Title */}
+      <div className="mb-10 text-left">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">로그인</h1>
+        <p className="text-sm text-gray-500">LOCA 서비스 이용을 위해 로그인해주세요.</p>
       </div>
 
-      {/* Main Title Section */}
-      <div className="mt-4 mb-8 text-left space-y-2">
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-          LOCA 로그인
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          서비스 이용을 위해 이메일과 비밀번호를 입력해주세요.
-        </p>
-      </div>
-
-      {/* Form Section */}
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between space-y-6">
-        <div className="space-y-4">
-          {/* 이메일 입력 폼 */}
-          <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-[var(--color-text-secondary)] ml-1">
-              이메일
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-gray-400">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">
+        <div className="space-y-5">
+          {/* 이메일 */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-sm font-medium text-gray-700">이메일</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <Mail size={18} />
               </span>
               <input
@@ -84,18 +76,16 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="example@loca.com"
                 disabled={isLoading}
-                className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-[var(--color-neutral-border)] bg-gray-50/50 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-primary)] focus:bg-white transition-colors disabled:opacity-60"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors disabled:opacity-50"
               />
             </div>
           </div>
 
-          {/* 비밀번호 입력 폼 */}
-          <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-[var(--color-text-secondary)] ml-1">
-              비밀번호
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-gray-400">
+          {/* 비밀번호 */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-sm font-medium text-gray-700">비밀번호</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <Lock size={18} />
               </span>
               <input
@@ -104,36 +94,34 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="비밀번호를 입력하세요"
                 disabled={isLoading}
-                className="w-full pl-11 pr-11 py-3.5 rounded-xl border border-[var(--color-neutral-border)] bg-gray-50/50 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-primary)] focus:bg-white transition-colors disabled:opacity-60"
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          {/* 에러 메시지 렌더링 */}
+          {/* 에러 메시지 */}
           {errorMsg && (
-            <p className="text-xs font-medium text-rose-500 ml-1 text-left animate-shake">
-              {errorMsg}
-            </p>
+            <p className="text-xs text-red-500 ml-0.5">{errorMsg}</p>
           )}
         </div>
 
-        {/* Action Button & Sign Up Link */}
-        <div className="space-y-4 pb-4">
+        {/* 하단 버튼 */}
+        <div className="space-y-4 pb-4 mt-8">
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-bold shadow-md active:scale-98 transition-all hover:bg-[var(--color-brand-primary)]/90 cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-70"
+            className="w-full py-3.5 rounded-xl bg-[#111] text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 <span>로그인 중...</span>
               </>
             ) : (
@@ -141,13 +129,10 @@ export default function LoginPage() {
             )}
           </button>
 
-          <div className="flex items-center justify-center space-x-2 text-xs text-[var(--color-text-secondary)]">
+          <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500">
             <span>계정이 없으신가요?</span>
-            <Link
-              to="/signup"
-              className="font-bold text-[var(--color-brand-primary)] underline hover:opacity-80 transition-opacity"
-            >
-              회원가입하기
+            <Link to="/signup" className="font-semibold text-[#111] underline">
+              회원가입
             </Link>
           </div>
         </div>

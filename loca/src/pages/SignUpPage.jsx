@@ -38,7 +38,7 @@ export default function SignUpPage() {
       case 3:
         return { score: 3, label: "안전", color: "bg-emerald-500", textColor: "text-emerald-600" };
       case 4:
-        return { score: 4, label: "매우 강력", color: "bg-indigo-600", textColor: "text-indigo-600" };
+        return { score: 4, label: "매우 강력", color: "bg-[#111]", textColor: "text-gray-900" };
       default:
         return { score: 1, label: "약함", color: "bg-rose-500", textColor: "text-rose-500" };
     }
@@ -83,7 +83,6 @@ export default function SignUpPage() {
       navigate("/login", { replace: true });
     } catch (err) {
       console.error("SignUp API Error:", err);
-      // 백엔드실제 에러 메시지 표출
       setErrorMsg(err.message || "회원가입 처리 중 에러가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
@@ -91,38 +90,30 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-6 py-6 select-none">
-      {/* Header Back Button */}
-      <div className="flex items-center justify-between pb-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 -ml-2 rounded-full text-[var(--color-text-primary)] hover:bg-gray-100 transition-colors"
-          aria-label="뒤로가기"
-        >
-          <ArrowLeft size={22} />
-        </button>
+    <div className="flex flex-col min-h-screen bg-white px-6 py-8 select-none">
+      {/* Back */}
+      <button
+        onClick={() => navigate(-1)}
+        className="self-start text-gray-400 hover:text-gray-600 transition-colors -ml-1 mb-8"
+        aria-label="뒤로가기"
+      >
+        <ArrowLeft size={22} />
+      </button>
+
+      {/* Title */}
+      <div className="mb-8 text-left">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">회원가입</h1>
+        <p className="text-sm text-gray-500">LOCA 계정을 생성하고 나만의 장소를 기록해보세요.</p>
       </div>
 
-      {/* Main Title Section */}
-      <div className="mt-2 mb-6 text-left space-y-1">
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-          회원가입
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          이메일과 비밀번호로 LOCA 계정을 생성해보세요.
-        </p>
-      </div>
-
-      {/* Form Section */}
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between space-y-6">
-        <div className="space-y-4">
-          {/* 1. 이메일 입력 */}
-          <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-[var(--color-text-secondary)] ml-1">
-              이메일 (Email)
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-gray-400">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">
+        <div className="space-y-5">
+          {/* 이메일 */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-sm font-medium text-gray-700">이메일</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <Mail size={18} />
               </span>
               <input
@@ -131,26 +122,24 @@ export default function SignUpPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="example@loca.com"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-[var(--color-neutral-border)] bg-gray-50/50 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-primary)] focus:bg-white transition-colors"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors disabled:opacity-50"
               />
             </div>
           </div>
 
-          {/* 2. 비밀번호 입력 및 4단계 안전도 표시 */}
+          {/* 비밀번호 */}
           <div className="space-y-1.5 text-left">
-            <div className="flex items-center justify-between ml-1">
-              <label className="text-xs font-bold text-[var(--color-text-secondary)]">
-                비밀번호 (Password)
-              </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">비밀번호</label>
               {formData.password && (
-                <span className={`text-xs font-bold ${strengthInfo.textColor} flex items-center space-x-1`}>
-                  <span>안전도: {strengthInfo.label}</span>
+                <span className={`text-xs font-semibold ${strengthInfo.textColor}`}>
+                  안전도: {strengthInfo.label}
                 </span>
               )}
             </div>
-
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-gray-400">
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <Lock size={18} />
               </span>
               <input
@@ -158,45 +147,37 @@ export default function SignUpPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="8자 이상 64자 이하 비밀번호"
-                className="w-full pl-11 pr-11 py-3 rounded-xl border border-[var(--color-neutral-border)] bg-gray-50/50 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-primary)] focus:bg-white transition-colors"
+                placeholder="8자 이상 64자 이하"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-
-            {/* 비밀번호 안전도 4단계 바 (Password Strength Bar Indicator) */}
             {formData.password && (
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center space-x-1.5">
-                  {[1, 2, 3, 4].map((step) => (
-                    <div
-                      key={step}
-                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                        step <= strengthInfo.score ? strengthInfo.color : "bg-gray-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-[11px] text-[var(--color-text-muted)] ml-0.5">
-                  영문, 숫자, 특수문자 조합 10자 이상 시 매우 강력
-                </p>
+              <div className="flex gap-1 pt-1">
+                {[1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                      step <= strengthInfo.score ? strengthInfo.color : "bg-gray-200"
+                    }`}
+                  />
+                ))}
               </div>
             )}
           </div>
 
-          {/* 3. 비밀번호 확인 입력 */}
-          <div className="space-y-1 text-left">
-            <label className="text-xs font-bold text-[var(--color-text-secondary)] ml-1">
-              비밀번호 확인
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-gray-400">
+          {/* 비밀번호 확인 */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-sm font-medium text-gray-700">비밀번호 확인</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <CheckCircle2 size={18} />
               </span>
               <input
@@ -205,68 +186,51 @@ export default function SignUpPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="비밀번호 재입력"
-                className="w-full pl-11 pr-11 py-3 rounded-xl border border-[var(--color-neutral-border)] bg-gray-50/50 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-primary)] focus:bg-white transition-colors"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {/* 비밀번호 일치 상태 실시간 가이드 */}
             {formData.confirmPassword && (
-              <div className="ml-1 pt-0.5">
-                {formData.password === formData.confirmPassword ? (
-                  <p className="text-[11px] font-medium text-emerald-600 flex items-center space-x-1">
-                    <span>✓ 비밀번호가 일치합니다</span>
-                  </p>
-                ) : (
-                  <p className="text-[11px] font-medium text-rose-500">
-                    ✕ 비밀번호가 일치하지 않습니다
-                  </p>
-                )}
-              </div>
+              <p className={`text-xs ml-0.5 ${formData.password === formData.confirmPassword ? "text-emerald-600 font-medium" : "text-rose-500"}`}>
+                {formData.password === formData.confirmPassword ? "✓ 비밀번호가 일치합니다." : "✕ 비밀번호가 일치하지 않습니다."}
+              </p>
             )}
           </div>
 
-          {/* 에러 메시지 렌더링 */}
+          {/* 에러 메시지 */}
           {errorMsg && (
-            <p className="text-xs font-medium text-rose-500 ml-1 text-left animate-shake">
-              {errorMsg}
-            </p>
+            <p className="text-xs text-red-500 ml-0.5">{errorMsg}</p>
           )}
         </div>
 
-        {/* Action Button & Login Link */}
-        <div className="space-y-4 pb-4">
+        {/* 하단 버튼 */}
+        <div className="space-y-4 pb-4 mt-8">
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-4 rounded-xl text-white text-sm font-bold shadow-md active:scale-98 transition-all flex items-center justify-center space-x-2 ${
-              isSubmitting
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary)]/90 cursor-pointer"
-            }`}
+            className="w-full py-3.5 rounded-xl bg-[#111] text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
-                <span>회원가입 처리 중...</span>
+                <Loader2 size={16} className="animate-spin" />
+                <span>처리 중...</span>
               </>
             ) : (
               <span>가입하기</span>
             )}
           </button>
 
-          <div className="flex items-center justify-center space-x-2 text-xs text-[var(--color-text-secondary)]">
+          <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500">
             <span>이미 계정이 있으신가요?</span>
-            <Link
-              to="/login"
-              className="font-bold text-[var(--color-brand-primary)] underline hover:opacity-80 transition-opacity"
-            >
-              로그인하기
+            <Link to="/login" className="font-semibold text-[#111] underline">
+              로그인
             </Link>
           </div>
         </div>

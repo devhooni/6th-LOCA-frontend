@@ -6,38 +6,286 @@
   --color-brand-soft: #f4f4f5;
   --color-brand-second: #6366f1;
 
-  --color-neutral-background: #fafafa;
+  --color-neutral-background: #ffffff;
   --color-neutral-surface: #ffffff;
-  --color-neutral-border: #e4e4e7;
-  --color-neutral-divider: #f4f4f5;
+  --color-neutral-border: #f0f0f0;
+  --color-neutral-divider: #f5f5f5;
 
-  --color-text-primary: #18181b;
-  --color-text-secondary: #71717a;
-  --color-text-muted: #a1a1aa;
+  --color-text-primary: #111111;
+  --color-text-secondary: #888888;
+  --color-text-muted: #bbbbbb;
 }
 
-/* Animation for rotating globe */
-@keyframes rotate-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-rotate-slow {
-  animation: rotate-slow 20s linear infinite;
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 탐색 나침반 클릭 시 부드럽게 켜졌다(scale up) 작아지는(scale down) 애니메이션 */
+@keyframes compass-bounce {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
-/* Hero background */
-.bg-hero {
-  background: #ffffff;
-} 
-
-/* Custom globe icon */
-.globe-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, var(--color-brand-primary) 30%, var(--color-brand-soft) 70%);
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.2);
+/* 나침반 원형 배경 회색 채움 -> 서서히 원래대로 */
+@keyframes compass-bg-flash {
+  0% {
+    fill: transparent;
+  }
+  30% {
+    fill: #e5e7eb; /* 확실하게 체감되는 부드러운 중립 그레이 */
+  }
+  70% {
+    fill: #f3f4f6;
+  }
+  100% {
+    fill: transparent;
+  }
 }
+
+
+/* 원래 나침반 4각 다이아몬드 초침 회전 + N(빨강)/S(파랑) 채움 */
+@keyframes compass-needle-spin-color {
+  0% {
+    transform: rotate(0deg);
+    fill: transparent;
+  }
+  35% {
+    transform: rotate(180deg);
+    fill: url(#compass-needle-gradient);
+  }
+  75% {
+    transform: rotate(320deg);
+    fill: url(#compass-needle-gradient);
+    opacity: 0.6;
+  }
+  100% {
+    transform: rotate(360deg);
+    fill: transparent;
+    opacity: 1;
+  }
+}
+
+.animate-compass-bounce {
+  animation: compass-bounce 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-compass-bg {
+  animation: compass-bg-flash 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-needle-spin-color {
+  animation: compass-needle-spin-color 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: 12px 12px;
+}
+
+/* FOR YOU 별 아이콘: 테두리(Border)는 검정 유지 + 큰 별과 작은 별 2개가 시차(Stagger)를 두고 따로따로 바운스 & 노란색 채우기 */
+@keyframes sparkle-main-separate {
+  0% {
+    transform: scale(1);
+    fill: transparent;
+  }
+  30% {
+    transform: scale(1.32);
+    fill: #f59e0b; /* 생동감 있는 앰버 옐로우 */
+  }
+  60% {
+    transform: scale(0.9);
+    fill: #fbbf24;
+  }
+  85% {
+    transform: scale(1.08);
+    fill: rgba(245, 158, 11, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    fill: transparent;
+  }
+}
+
+@keyframes sparkle-sub1-separate {
+  0% {
+    transform: scale(1);
+    fill: transparent;
+  }
+  35% {
+    transform: scale(1.45);
+    fill: #fbbf24;
+  }
+  70% {
+    transform: scale(0.85);
+    fill: rgba(251, 191, 36, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    fill: transparent;
+  }
+}
+
+@keyframes sparkle-sub2-separate {
+  0% {
+    transform: scale(1);
+    fill: transparent;
+  }
+  35% {
+    transform: scale(1.45);
+    fill: #fbbf24;
+  }
+  70% {
+    transform: scale(0.85);
+    fill: rgba(251, 191, 36, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    fill: transparent;
+  }
+}
+
+.animate-sparkle-main-stagger {
+  animation: sparkle-main-separate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: 12px 14px;
+}
+
+.animate-sparkle-sub1-stagger {
+  animation: sparkle-sub1-separate 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
+  transform-origin: 20px 4px;
+}
+
+.animate-sparkle-sub2-stagger {
+  animation: sparkle-sub2-separate 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.22s both;
+  transform-origin: 4px 18px;
+}
+
+/* REVIEW 연필이 X축(오른쪽)으로 6.5px 스윽 갔다가 돌아오는 매끄러운 글라이드 애니메이션 */
+@keyframes pen-slide-glide-x {
+  0% {
+    transform: translateX(0);
+  }
+  38% {
+    transform: translateX(6.5px);
+  }
+  70% {
+    transform: translateX(-0.5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* 연필 색상이 0% -> 100% -> 0%로 극도로 부드럽게(opacity 곡선) 차올랐다가 사라지는 애니메이션 */
+@keyframes pen-smooth-color-fade {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1; /* 완전히 부드럽게 노랑/핑크 색상이 채워짐 */
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0; /* 부드럽게 완전히 사라짐 */
+  }
+}
+
+/* 펜촉 주변 9.5px 마스크(틈)가 연필 이동량(+6.5px)과 1:1 완벽 동기화되어 따라다님 */
+@keyframes pen-line-gap-follow {
+  0% {
+    stroke-dashoffset: 0px;
+  }
+  38% {
+    stroke-dashoffset: -6.5px; /* 펜촉 이동량(+6.5px)과 동일하게 오른쪽으로 이동 */
+  }
+  70% {
+    stroke-dashoffset: 0.5px;
+  }
+  100% {
+    stroke-dashoffset: 0px;
+  }
+}
+
+.animate-pen-body-x {
+  animation: pen-slide-glide-x 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.animate-pen-smooth-fade {
+  animation: pen-smooth-color-fade 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-pen-line-gap {
+  stroke-dasharray: 0px 9.5px 10.5px 0px; /* 펜촉 주변 9.5px 시원한 틈(마스크) */
+  animation: pen-line-gap-follow 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 기본 정지 상태에서도 펜촉 주변 밑줄에 9.5px 넉넉한 틈 유지 */
+.pen-line-base-gap {
+  stroke-dasharray: 0px 9.5px 10.5px 0px;
+}
+
+/* MY 유저 아이콘: 부드럽게 커졌다 작아지는(Scale Bounce) 효과 */
+@keyframes my-user-bounce {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* MY 유저 아이콘: 머리와 몸체에 세련된 그레이(#9ca3af)가 부드럽게 채워졌다가 투명 복귀 */
+@keyframes my-user-gray-fill {
+  0% {
+    fill: transparent;
+  }
+  35% {
+    fill: #9ca3af; /* 세련되고 부드러운 미디엄 그레이 채움 */
+  }
+  70% {
+    fill: #d1d5db; /* 라이트 그레이로 자연스러운 페이드아웃 */
+    opacity: 0.8;
+  }
+  100% {
+    fill: transparent;
+    opacity: 1;
+  }
+}
+
+.animate-my-bounce {
+  animation: my-user-bounce 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+}
+
+.animate-my-gray-fill {
+  animation: my-user-gray-fill 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

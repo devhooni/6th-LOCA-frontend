@@ -9,6 +9,7 @@ import SignUpPage from "./pages/SignUpPage";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 import ForYouPage from "./pages/ForYouPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // 인증 필요 라우트 가드 (로그인 미완료 시 어떤 링크로 들어가도 /onboarding으로 리다이렉트)
 function ProtectedRoute({ children }) {
@@ -17,6 +18,24 @@ function ProtectedRoute({ children }) {
 
   if (!token) {
     return <Navigate to="/onboarding" replace state={{ from: location }} />;
+  }
+
+  return children;
+}
+
+// 관리자 전용 라우트 가드 (isAdmin === "true" 또는 관리자 이메일일 때만 진입 허용, 아니면 404 NotFoundPage 렌더링)
+function AdminRoute({ children }) {
+  const token = localStorage.getItem("accessToken");
+  const userEmail = localStorage.getItem("userEmail") || "";
+  const isAdmin = localStorage.getItem("isAdmin") === "true" || userEmail.toLowerCase().includes("admin");
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/onboarding" replace state={{ from: location }} />;
+  }
+
+  if (!isAdmin) {
+    return <NotFoundPage />;
   }
 
   return children;
@@ -104,23 +123,20 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* 관리자 라우트: POST /api/auth/login 시 응답받은 isAdmin 값이 true일 때만 접근 가능 (아니면 404) */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminPage />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
 
-        {/* 미정의 와일드카드 경로 진입 시에도 로그인 여부에 따라 리다이렉트 */}
+        {/* 미정의 와일드카드 경로(예: /asdfsd 등) 진입 시 404 Not Found 및 로카 브랜드 이미지 표시 */}
         <Route
           path="*"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/explore" replace />
-            </ProtectedRoute>
-          }
+          element={<NotFoundPage />}
         />
       </Routes>
     </AppShell>
