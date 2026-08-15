@@ -1,4 +1,9 @@
-const BASE_DOMAIN = (import.meta.env.VITE_PUBLIC_API_BASE_URL || "https://sixth-loca-backend-9.onrender.com").replace(/\/swagger-ui\/?$/, "");
+const rawBaseUrl = import.meta.env.VITE_PUBLIC_API_BASE_URL || "https://sixth-loca-backend-9.onrender.com";
+const normalizedBaseUrl = rawBaseUrl.startsWith("http://") || rawBaseUrl.startsWith("https://")
+  ? rawBaseUrl
+  : `https://${rawBaseUrl}`;
+const BASE_DOMAIN = normalizedBaseUrl.replace(/\/swagger-ui\/?$/, "").replace(/\/+$/, "");
+
 
 
 // 백엔드 에러 응답 객체/텍스트로부터 실제 메시지를 추출하는 공통 헬퍼 함수
