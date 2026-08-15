@@ -100,10 +100,21 @@ export default function SignUpPage() {
         <ArrowLeft size={22} />
       </button>
 
-      {/* Title */}
-      <div className="mb-8 text-left">
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">회원가입</h1>
-        <p className="text-sm text-gray-500">LOCA 계정을 생성하고 나만의 장소를 기록해보세요.</p>
+      {/* Mascot Illustration & Welcome Banner */}
+      <div className="flex flex-col items-center mb-6 text-center">
+        <div className="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center">
+          <img
+            src="/imgs/Signup.png"
+            alt="Welcome to LOCA Friends"
+            className="w-full h-full object-contain filter drop-shadow-sm"
+          />
+        </div>
+        <h1 className="text-xl font-extrabold text-[var(--color-text-primary)] mb-1 tracking-tight">
+          만나서 반가워요! 🎉
+        </h1>
+        <p className="text-xs text-gray-500">
+          LOCA와 함께 나만의 특별한 장소를 저장하고 기록해보세요!
+        </p>
       </div>
 
       {/* Form */}

@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Compass, Sparkles, PenLine, User, MapPin, Heart, Bookmark, Share2, LogIn, UserPlus, X } from "lucide-react";
+import {
+  Compass,
+  Sparkles,
+  PenLine,
+  User,
+  MapPin,
+  Heart,
+  Bookmark,
+  Share2,
+  LogIn,
+  UserPlus,
+  X,
+} from "lucide-react";
+import peekFriendsIllustration from "/imgs/start.png";
 
 export default function OnboardingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -59,8 +72,7 @@ export default function OnboardingPage() {
             style={{
               left: left,
               top: top,
-            }}
-          >
+            }}>
             <Icon size={size} strokeWidth={1.8} />
           </div>
         ))}
@@ -85,15 +97,13 @@ export default function OnboardingPage() {
       <div className="relative z-10 w-full max-w-xs space-y-3 pb-6">
         <button
           onClick={() => setShowAuthModal(true)}
-          className="flex w-full items-center justify-center rounded-xl bg-[var(--color-brand-primary)] py-4 text-sm font-bold text-[var(--color-neutral-surface)] shadow-lg shadow-black/10 transition-all active:scale-95 hover:bg-[var(--color-brand-primary)]/90 cursor-pointer"
-        >
+          className="flex w-full items-center justify-center rounded-xl bg-[var(--color-brand-primary)] py-4 text-sm font-bold text-[var(--color-neutral-surface)] shadow-lg shadow-black/10 transition-all active:scale-95 hover:bg-[var(--color-brand-primary)]/90 cursor-pointer">
           시작하기
         </button>
 
         <button
           onClick={() => setShowGuideModal(true)}
-          className="flex w-full items-center justify-center py-2.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
-        >
+          className="flex w-full items-center justify-center py-2.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
           LOCA 이용방법
         </button>
       </div>
@@ -106,7 +116,34 @@ export default function OnboardingPage() {
             onClick={() => setShowGuideModal(false)}
           />
 
-          <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl space-y-5 animate-slide-up max-h-[85vh] overflow-y-auto">
+          <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 pt-7 shadow-2xl space-y-5 animate-slide-up max-h-[85vh] overflow-visible">
+            {/* 바텀시트 상단 모서리에 쏙 걸쳐 튀어나온 오디 & 말풍선 (Absolute Top Overflow) */}
+            <div className="absolute -top-14 left-5 right-5 flex items-end space-x-2.5 pointer-events-none z-20">
+              {/* 바텀시트 위로 빼꼼 튀어나온 오디 */}
+              <img
+                src="/imgs/odi-character.png"
+                alt="Odi Mascot"
+                className="w-18 h-18 object-contain drop-shadow-md flex-none animate-bounce-subtle pointer-events-auto"
+                onError={(e) => {
+                  e.target.src = "/imgs/Odi.png";
+                }}
+              />
+
+              {/* 오디의 귀여운 말풍선 버블 */}
+              <div className="relative bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-md border border-indigo-100/80 text-left mb-2 pointer-events-auto">
+                {/* 말풍선 꼬리 (좌하단) */}
+                <div className="absolute -left-1.5 bottom-3 w-3 h-3 bg-white border-l border-b border-indigo-100/80 rotate-45" />
+                <p className="text-xs font-bold text-zinc-900 leading-snug">
+                  안녕 난{" "}
+                  <span className="text-indigo-600 font-extrabold">오디</span>
+                  야! 📍
+                </p>
+                <p className="text-[11px] text-zinc-600 mt-0.5 whitespace-nowrap">
+                  LOCA 서비스 사용법을 알려줄게!
+                </p>
+              </div>
+            </div>
+
             {/* Header & Close */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center space-x-2">
@@ -117,22 +154,24 @@ export default function OnboardingPage() {
               </div>
               <button
                 onClick={() => setShowGuideModal(false)}
-                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-              >
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer">
                 <X size={20} />
               </button>
             </div>
 
             {/* Guide Step Items */}
-            <div className="space-y-4 text-left">
+            <div className="space-y-3.5 text-left max-h-[55vh] overflow-y-auto pr-1">
               <div className="flex items-start space-x-3.5 p-3.5 rounded-2xl bg-zinc-50 border border-zinc-100">
                 <div className="flex-none p-2 rounded-xl bg-white text-zinc-800 shadow-xs border border-zinc-200/60">
                   <Compass size={18} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-zinc-900">1. EXPLORE (탐색)</h4>
+                  <h4 className="text-xs font-bold text-zinc-900">
+                    1. EXPLORE (탐색)
+                  </h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    지도를 둘러보며 공용 추천 장소와 나만의 비밀 장소를 한눈에 확인하세요.
+                    지도를 둘러보며 공용 추천 장소와 나만의 비밀 장소를 한눈에
+                    확인하세요.
                   </p>
                 </div>
               </div>
@@ -142,9 +181,12 @@ export default function OnboardingPage() {
                   <Sparkles size={18} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-zinc-900">2. FOR YOU (맞춤 추천)</h4>
+                  <h4 className="text-xs font-bold text-zinc-900">
+                    2. FOR YOU (맞춤 추천)
+                  </h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    작성한 리뷰 데이터를 바탕으로 내 취향에 딱 맞는 장소를 추천받으세요.
+                    작성한 리뷰 데이터를 바탕으로 내 취향에 딱 맞는 장소를
+                    추천받으세요.
                   </p>
                 </div>
               </div>
@@ -154,9 +196,12 @@ export default function OnboardingPage() {
                   <MapPin size={18} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-zinc-900">3. ADD & REVIEW (기록 & 공유)</h4>
+                  <h4 className="text-xs font-bold text-zinc-900">
+                    3. ADD & REVIEW (기록 & 공유)
+                  </h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    새로운 장소를 등록하고, 방문 경험과 동행자, 분위기 태그를 리뷰로 남겨보세요.
+                    새로운 장소를 등록하고, 방문 경험과 동행자, 분위기 태그를
+                    리뷰로 남겨보세요.
                   </p>
                 </div>
               </div>
@@ -166,9 +211,12 @@ export default function OnboardingPage() {
                   <User size={18} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-zinc-900">4. MY (나만의 보관함)</h4>
+                  <h4 className="text-xs font-bold text-zinc-900">
+                    4. MY (나만의 보관함)
+                  </h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    내가 등록한 장소와 남긴 리뷰들을 편리하게 모아보고 관리하세요.
+                    내가 등록한 장소와 남긴 리뷰들을 편리하게 모아보고
+                    관리하세요.
                   </p>
                 </div>
               </div>
@@ -181,8 +229,7 @@ export default function OnboardingPage() {
                   setShowGuideModal(false);
                   setShowAuthModal(true);
                 }}
-                className="w-full py-3.5 rounded-xl bg-[var(--color-brand-primary)] text-white text-xs font-bold active:scale-98 transition-transform cursor-pointer shadow-xs"
-              >
+                className="w-full py-3.5 rounded-xl bg-[var(--color-brand-primary)] text-white text-xs font-bold active:scale-98 transition-transform cursor-pointer shadow-xs">
                 지금 시작하기
               </button>
             </div>
@@ -199,16 +246,24 @@ export default function OnboardingPage() {
             onClick={() => setShowAuthModal(false)}
           />
 
-          <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl space-y-5 animate-slide-up">
+          <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 pt-6 shadow-2xl space-y-5 animate-slide-up overflow-visible">
+            {/* 바텀시트 상단 경계선에 딱 밀착되어 큼직하게 빼꼼 튀어나온 로카프렌즈 4인방 (왼쪽 끝 정렬) */}
+            <div className="absolute -top-[74px] -left-6 flex justify-start pointer-events-none z-20">
+              <img
+                src={peekFriendsIllustration}
+                alt="LOCA Friends Peeking"
+                className="w-[300px] h-[104px] object-contain drop-shadow-md"
+              />
+            </div>
+
             {/* Header & Close */}
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
               <h3 className="text-base font-bold text-[var(--color-text-primary)]">
-                LOCA와 함께 시작하기
+                LOCA 시작하기
               </h3>
               <button
                 onClick={() => setShowAuthModal(false)}
-                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-              >
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -225,8 +280,7 @@ export default function OnboardingPage() {
                   setShowAuthModal(false);
                   navigate("/login");
                 }}
-                className="flex items-center justify-between w-full p-4 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-bold shadow-sm active:scale-98 transition-transform cursor-pointer"
-              >
+                className="flex items-center justify-between w-full p-4 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-bold shadow-sm active:scale-98 transition-transform cursor-pointer">
                 <div className="flex items-center space-x-3">
                   <LogIn size={18} />
                   <span>기존 계정으로 로그인</span>
@@ -240,8 +294,7 @@ export default function OnboardingPage() {
                   setShowAuthModal(false);
                   navigate("/signup");
                 }}
-                className="flex items-center justify-between w-full p-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-[var(--color-text-primary)] text-sm font-bold active:scale-98 transition-transform cursor-pointer border border-gray-200/60"
-              >
+                className="flex items-center justify-between w-full p-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-[var(--color-text-primary)] text-sm font-bold active:scale-98 transition-transform cursor-pointer border border-gray-200/60">
                 <div className="flex items-center space-x-3">
                   <UserPlus size={18} />
                   <span>새로 회원가입하기</span>

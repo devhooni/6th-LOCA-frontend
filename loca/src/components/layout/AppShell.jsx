@@ -11,7 +11,7 @@ export function AppShell({ children, className }) {
   const isAdd = location.pathname === "/add";
 
   return (
-    <div className="mx-auto flex h-screen w-full max-w-[430px] flex-col bg-white overflow-hidden relative">
+    <div className="mx-auto flex h-screen w-full max-w-[430px] flex-col bg-white overflow-x-hidden overflow-y-hidden relative">
       {!hideNav && (
         <div className="flex-none w-full">
           <TopBar />

@@ -178,15 +178,15 @@ export default function ReviewPage() {
   };
 
   const companionOptions = [
-    { value: "ALONE", label: "혼자" },
-    { value: "FRIEND", label: "친구와" },
-    { value: "LOVER", label: "연인과" },
-    { value: "FAMILY", label: "가족과" },
-    { value: "ETC", label: "기타/동료" },
+    { value: "ALONE", label: "혼자", img: "/imgs/alone.png" },
+    { value: "FRIEND", label: "친구와", img: "/imgs/friends.png" },
+    { value: "LOVER", label: "연인과", img: "/imgs/couple.png" },
+    { value: "FAMILY", label: "가족과", img: "/imgs/family.png" },
+    { value: "ETC", label: "기타/동료", img: "/imgs/etc.png" },
   ];
 
   return (
-    <div className="flex flex-col h-full w-full bg-white select-none text-left overflow-y-auto space-y-5">
+    <div className="flex flex-col h-full w-full bg-white select-none text-left space-y-5 overflow-x-hidden">
       {/* Page Title */}
       <div>
         <h1 className="text-lg font-bold text-[#111]">리뷰 작성</h1>
@@ -294,26 +294,43 @@ export default function ReviewPage() {
               />
             </div>
 
-            {/* 동행인 선택 (companion: ALONE, FRIEND, LOVER, FAMILY, ETC) */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 block">
-                누구와 함께 방문하셨나요?
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {companionOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setCompanion(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                      companion === opt.value
-                        ? "bg-[#111] text-white font-bold"
-                        : "bg-gray-100 text-gray-600 font-medium hover:bg-gray-200"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            {/* 동행인 선택 (companion: ALONE, FRIEND, LOVER, FAMILY, ETC) - 크게 시원하게 보이는 가로 스크롤 카드 */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700 block">
+                  누구와 함께 방문하셨나요?
+                </label>
+                <span className="text-[11px] text-gray-400">좌우로 넘겨 선택 ➔</span>
+              </div>
+
+              <div className="flex space-x-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
+                {companionOptions.map((opt) => {
+                  const isSelected = companion === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCompanion(opt.value)}
+                      className={`flex-none flex flex-col items-center justify-between w-[88px] h-[110px] p-2.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-[#111] text-white border-[#111] shadow-md scale-105"
+                          : "bg-gray-50/80 text-gray-600 border-gray-200/80 hover:bg-white hover:border-gray-300 shadow-2xs"
+                      }`}
+                    >
+                      {/* 큼직하고 선명한 캐릭터 일러스트 */}
+                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center">
+                        <img
+                          src={opt.img}
+                          alt={opt.label}
+                          className="w-full h-full object-contain filter drop-shadow-sm transition-transform group-hover:scale-105"
+                        />
+                      </div>
+                      <span className={`text-xs font-bold tracking-tight mt-1 ${isSelected ? "text-white" : "text-gray-800"}`}>
+                        {opt.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

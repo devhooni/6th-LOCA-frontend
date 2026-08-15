@@ -423,7 +423,7 @@ export default function ExplorePage() {
             ) : (
               <div className="flex flex-col h-full overflow-hidden">
                 <div className="flex items-center justify-between flex-none mb-4">
-                  <h2 className="text-base font-bold text-[#111]">Places</h2>
+                  <h2 className="text-base font-bold text-[#111]">Explore</h2>
                   <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
                     <button
                       onClick={handleSelectPrivate}

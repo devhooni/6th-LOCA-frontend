@@ -54,10 +54,21 @@ export default function LoginPage() {
         <ArrowLeft size={22} />
       </button>
 
-      {/* Title */}
-      <div className="mb-10 text-left">
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">로그인</h1>
-        <p className="text-sm text-gray-500">LOCA 서비스 이용을 위해 로그인해주세요.</p>
+      {/* Mascot Illustration & Welcome Banner */}
+      <div className="flex flex-col items-center mb-6 text-center">
+        <div className="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center">
+          <img
+            src="/imgs/Login.png"
+            alt="Welcome Back LOCA Friends"
+            className="w-full h-full object-contain filter drop-shadow-sm"
+          />
+        </div>
+        <h1 className="text-xl font-extrabold text-[var(--color-text-primary)] mb-1 tracking-tight">
+          다시 돌아오셨군요! 👋
+        </h1>
+        <p className="text-xs text-gray-500">
+          친구들이 기다리고 있었어요. 로그인하고 탐색을 시작해볼까요?
+        </p>
       </div>
 
       {/* Form */}

@@ -6,6 +6,7 @@ import {
   fetchForYouRecommendations,
   fetchPublicPlaceDetail,
 } from "../services/placeService";
+import forYouIllustration from "/imgs/Foryou.png";
 
 export default function ForYouPage() {
   const navigate = useNavigate();
@@ -131,19 +132,28 @@ export default function ForYouPage() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400 my-auto">
           <Loader2 className="animate-spin text-gray-400" size={24} />
-          <span className="text-sm text-gray-500">불러오는 중...</span>
+          <span className="text-sm text-gray-500">로카프렌즈가 맞춤 장소를 찾는 중...</span>
         </div>
       ) : !isUnlocked ? (
         /* LOCKED STATE */
-        <div className="flex flex-col bg-white rounded-xl border border-gray-100 p-6 text-center space-y-5 my-auto">
-          <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-            <Lock size={24} />
+        <div className="flex flex-col bg-white rounded-2xl border border-gray-100 p-6 text-center space-y-5 my-auto shadow-xs">
+          {/* 로카프렌즈 분석 일러스트 */}
+          <div className="w-full max-w-[280px] h-36 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
+            <img
+              src={forYouIllustration}
+              alt="LOCA Friends analyzing recommendations"
+              className="w-full h-full object-contain filter drop-shadow-xs"
+            />
           </div>
 
           <div className="space-y-1.5">
-            <h2 className="text-base font-bold text-[#111]">맞춤 추천 잠김</h2>
-            <p className="text-sm text-gray-500">
-              리뷰를 3개 이상 작성하면 AI가 당신의 취향을 분석하여 맞춤 장소 5개를 추천해드려요.
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold mb-1">
+              <Lock size={12} />
+              <span>맞춤 추천 잠김</span>
+            </div>
+            <h2 className="text-base font-bold text-[#111]">로카프렌즈의 취향 분석</h2>
+            <p className="text-xs text-gray-500 leading-relaxed px-2">
+              리뷰를 3개 이상 작성하면 친구들이 내 취향을 꼼꼼히 분석해서 딱 맞는 장소 5개를 추천해드려요!
             </p>
           </div>
 
@@ -173,110 +183,129 @@ export default function ForYouPage() {
           </button>
         </div>
       ) : (
-        /* UNLOCKED STATE */
+        /* UNLOCKED STATE - Hero Banner Overlap Layout */
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">맞춤 추천 픽</span>
-            <span className="text-sm text-gray-400">
-              {currentIndex + 1} / {recommendations.length}
-            </span>
-          </div>
-
-          {recommendations.length === 0 ? (
-            <div className="py-12 bg-white rounded-xl border border-gray-100 text-center text-sm text-gray-500">
-              추천할 장소 데이터를 불러오지 못했습니다.
+          {/* 상단 Hero 배너 + 장소 카드 오버랩 컨테이너 */}
+          <div className="relative pt-2">
+            {/* 1. 배경 상단에 자연스럽게 펼쳐지는 로카프렌즈 4인방 일러스트 */}
+            <div className="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
+              <img
+                src={forYouIllustration}
+                alt="LOCA Friends recommendations"
+                className="w-full h-full object-contain filter drop-shadow-sm"
+              />
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="w-full overflow-hidden">
-                <div
-                  className="flex transition-transform duration-300 ease-out"
-                  style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-                >
-                  {recommendations.map((place, idx) => {
-                    const placeTags = place.tags || place.keywords || [];
-                    return (
-                      <div
-                        key={place.placeId || place.kakaoPlaceId || idx}
-                        onClick={() => navigate("/explore", { state: { place } })}
-                        className="w-full flex-none bg-white rounded-xl p-5 border border-gray-100 cursor-pointer active:bg-gray-50 transition-colors"
-                      >
-                        <div className="space-y-3">
-                          <div className="text-xs text-gray-400">#{idx + 1}</div>
-                          
-                          <div className="space-y-1">
-                            <h3 className="text-base font-bold text-[#111]">
-                              {place.name}
-                            </h3>
-                            <div className="flex items-center space-x-1 text-sm text-gray-500">
-                              <MapPin size={14} className="flex-none" />
-                              <span className="truncate">{place.address || "주소 정보 없음"}</span>
+
+            {/* 2. 일러스트 하단과 겹치면서 올라오는 추천 장소 카드 (Negative Top Margin) */}
+            <div className="relative -mt-6 z-10">
+              <div className="flex items-center justify-end mb-2 px-1">
+                <span className="text-xs text-gray-400 font-medium">
+                  {currentIndex + 1} / {recommendations.length}
+                </span>
+              </div>
+
+              {recommendations.length === 0 ? (
+                <div className="py-12 bg-white rounded-2xl border border-gray-100 text-center text-sm text-gray-500 shadow-sm">
+                  추천할 장소 데이터를 불러오지 못했습니다.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="w-full overflow-hidden rounded-2xl shadow-md border border-gray-100/80 bg-white">
+                    <div
+                      className="flex transition-transform duration-300 ease-out"
+                      style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                    >
+                      {recommendations.map((place, idx) => {
+                        const placeTags = place.tags || place.keywords || [];
+                        return (
+                          <div
+                            key={place.placeId || place.kakaoPlaceId || idx}
+                            onClick={() => navigate("/explore", { state: { place } })}
+                            className="w-full flex-none p-5 bg-white cursor-pointer active:bg-gray-50/80 transition-colors text-left"
+                          >
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                                  #{idx + 1} 맞춤 추천
+                                </span>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <h3 className="text-base font-bold text-[#111]">
+                                  {place.name}
+                                </h3>
+                                <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                  <MapPin size={14} className="flex-none text-gray-400" />
+                                  <span className="truncate">{place.address || "주소 정보 없음"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-3.5 mt-3.5 border-t border-gray-100">
+                              <div className="text-xs text-gray-400 font-medium">분위기 & 키워드</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {Array.isArray(placeTags) && placeTags.length > 0 ? (
+                                  placeTags.map((t, tIdx) => {
+                                    const tagName = typeof t === "string" ? t : t.name || t.tagName;
+                                    return (
+                                      <span
+                                        key={tIdx}
+                                        className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium"
+                                      >
+                                        #{tagName}
+                                      </span>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-xs text-gray-400">
+                                    등록된 태그가 없습니다.
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                        <div className="space-y-2 pt-4 mt-4 border-t border-gray-50">
-                          <div className="text-xs text-gray-400">태그</div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {Array.isArray(placeTags) && placeTags.length > 0 ? (
-                              placeTags.map((t, tIdx) => {
-                                const tagName = typeof t === "string" ? t : t.name || t.tagName;
-                                return (
-                                  <span
-                                    key={tIdx}
-                                    className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 text-xs"
-                                  >
-                                    #{tagName}
-                                  </span>
-                                );
-                              })
-                            ) : (
-                              <span className="text-xs text-gray-400">
-                                등록된 태그가 없습니다.
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {/* 하단 페이지네이션 및 이전/다음 버튼 */}
+                  <div className="flex items-center justify-between px-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      disabled={currentIndex === 0}
+                      className="text-sm font-medium text-gray-500 disabled:opacity-30 active:scale-95 transition-transform px-2 py-1 cursor-pointer"
+                    >
+                      ← 이전
+                    </button>
+
+                    <div className="flex space-x-1.5">
+                      {recommendations.map((_, dotIdx) => (
+                        <span
+                          key={dotIdx}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            dotIdx === currentIndex
+                              ? "w-4 bg-[#111]"
+                              : "w-1.5 bg-gray-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      disabled={currentIndex === recommendations.length - 1}
+                      className="text-sm font-medium text-gray-500 disabled:opacity-30 active:scale-95 transition-transform px-2 py-1 cursor-pointer"
+                    >
+                      다음 →
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={handlePrev}
-                  disabled={currentIndex === 0}
-                  className="text-sm text-gray-500 disabled:opacity-30 active:scale-95 transition-transform px-2"
-                >
-                  ← 이전
-                </button>
-
-                <div className="flex space-x-2">
-                  {recommendations.map((_, dotIdx) => (
-                    <span
-                      key={dotIdx}
-                      className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                        dotIdx === currentIndex
-                          ? "bg-[#111]"
-                          : "bg-gray-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={currentIndex === recommendations.length - 1}
-                  className="text-sm text-gray-500 disabled:opacity-30 active:scale-95 transition-transform px-2"
-                >
-                  다음 →
-                </button>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
