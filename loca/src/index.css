@@ -41,6 +41,22 @@ html, body, #root {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* 위에서 부드럽게 스르륵 내려오는 탑 드롭다운 애니메이션 */
+@keyframes slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* 탐색 나침반 클릭 시 부드럽게 켜졌다(scale up) 작아지는(scale down) 애니메이션 */
 @keyframes compass-bounce {
   0% {
