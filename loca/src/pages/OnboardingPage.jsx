@@ -247,7 +247,7 @@ export default function OnboardingPage() {
           />
 
           <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 pt-6 shadow-2xl space-y-5 animate-slide-up overflow-visible">
-            {/* 바텀시트 상단 경계선에 딱 밀착되어 큼직하게 빼꼼 튀어나온 로카프렌즈 4인방 (왼쪽 끝 정렬) */}
+            {/* 바텀시트 상단 경계선에 깔끔하게 빼꼼 튀어나온 로카프렌즈 4인방 (텍스트/말풍선 없음) */}
             <div className="absolute -top-[74px] -left-6 flex justify-start pointer-events-none z-20">
               <img
                 src={peekFriendsIllustration}

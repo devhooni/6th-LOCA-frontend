@@ -6,6 +6,22 @@ const BASE_DOMAIN = normalizedBaseUrl.replace(/\/swagger-ui\/?$/, "").replace(/\
 
 
 
+// 백엔드 연결 실패 또는 인증 만료 시 안전하게 온보딩으로 이동시키는 헬퍼 함수
+function handleAuthOrNetworkError(errOrStatus) {
+  if (typeof window !== "undefined") {
+    // 로그인 토큰 정리
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("isAdmin");
+
+    // 현재 온보딩/로그인/회원가입 페이지가 아니라면 즉시 온보딩으로 리다이렉트
+    const pathname = window.location.pathname;
+    if (!["/onboarding", "/login", "/signup"].includes(pathname)) {
+      window.location.replace("/onboarding");
+    }
+  }
+}
+
 // 백엔드 에러 응답 객체/텍스트로부터 실제 메시지를 추출하는 공통 헬퍼 함수
 async function extractErrorMessage(response, defaultMsg) {
   try {
@@ -27,12 +43,31 @@ async function extractErrorMessage(response, defaultMsg) {
   }
 }
 
+// 공통 fetch 래퍼 함수 (네트워크 연결 실패, 401 Unauthorized, 403 Forbidden 시 온보딩으로 강제 리다이렉트)
+export async function apiFetch(url, options = {}) {
+  try {
+    const response = await fetch(url, options);
+
+    // 401 Unauthorized 또는 403 Forbidden(인증 만료/유효하지 않은 토큰) 시 온보딩 리다이렉트
+    if (response.status === 401 || response.status === 403) {
+      handleAuthOrNetworkError(response.status);
+    }
+
+    return response;
+  } catch (networkError) {
+    // 백엔드 서버 다운, CORS 차단, 네트워크 단절(Fetch failure) 시 온보딩으로 리다이렉트
+    console.error("Backend connection failure:", networkError);
+    handleAuthOrNetworkError(networkError);
+    throw new Error("서버와의 연결이 원활하지 않습니다. 온보딩 페이지로 이동합니다.");
+  }
+}
+
 // 회원가입 API 호출 (/api/auth/signup) -> email, password 전송
 export async function signupUser({ email, password }) {
   const isDev = import.meta.env.DEV;
   const url = isDev ? "/api/auth/signup" : `${BASE_DOMAIN}/api/auth/signup`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -58,7 +93,7 @@ export async function loginUser({ email, password }) {
   const isDev = import.meta.env.DEV;
   const url = isDev ? "/api/auth/login" : `${BASE_DOMAIN}/api/auth/login`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -114,7 +149,7 @@ export async function fetchExploreRecommendations(tagIds = [1]) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -141,7 +176,7 @@ export async function fetchPublicPlaceDetail(placeId) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -166,7 +201,7 @@ export async function createCustomPlace({ name, address, lat, lng, isShareable }
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers,
     body: JSON.stringify({
@@ -201,7 +236,7 @@ export async function fetchPrivatePlaces() {
     "Authorization": `Bearer ${token}`,
   };
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -225,7 +260,7 @@ export async function fetchPrivatePlaceDetail(placeId) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -249,7 +284,7 @@ export async function updatePrivatePlace(placeId, { name, address, lat, lng, isS
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "PUT",
     headers: headers,
     body: JSON.stringify({
@@ -280,7 +315,7 @@ export async function deletePrivatePlace(placeId) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: headers,
   });
@@ -305,7 +340,7 @@ export async function fetchPublicPlaces() {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -329,7 +364,7 @@ export async function createAdminPlace({ name, kakaoPlaceId, address, lat, lng }
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers,
     body: JSON.stringify({
@@ -360,7 +395,7 @@ export async function updateAdminPlace(placeId, { name, address, lat, lng }) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "PUT",
     headers: headers,
     body: JSON.stringify({
@@ -390,7 +425,7 @@ export async function deleteAdminPlace(placeId) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: headers,
   });
@@ -418,7 +453,7 @@ export async function fetchForYouStatus() {
     "Authorization": `Bearer ${token}`,
   };
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -446,7 +481,7 @@ export async function fetchForYouRecommendations() {
     "Authorization": `Bearer ${token}`,
   };
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -474,7 +509,7 @@ export async function fetchMyReviews() {
     "Authorization": `Bearer ${token}`,
   };
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -499,7 +534,7 @@ export async function deleteReview(visitId) {
     throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -550,7 +585,7 @@ export async function createReview({
     imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
   };
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers,
     body: JSON.stringify(bodyData),
@@ -575,7 +610,7 @@ export async function fetchTags() {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "GET",
     headers: headers,
   });
@@ -599,7 +634,7 @@ export async function createAdminTag({ name }) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers,
     body: JSON.stringify({ name }),
@@ -624,7 +659,7 @@ export async function deleteAdminTag(tagId) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: headers,
   });
@@ -648,7 +683,7 @@ export async function updateAdminTag(tagId, { name }) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "PUT",
     headers: headers,
     body: JSON.stringify({ name }),

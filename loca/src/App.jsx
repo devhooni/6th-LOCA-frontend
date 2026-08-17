@@ -10,6 +10,7 @@ import SignUpPage from "./pages/SignUpPage";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 import ForYouPage from "./pages/ForYouPage";
+import FriendsPage from "./pages/FriendsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // 핵심 로카프렌즈 마스코트 이미지 프리로딩 목록
@@ -167,6 +168,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ForYouPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <FriendsPage />
             </ProtectedRoute>
           }
         />
