@@ -52,18 +52,14 @@ export default function AdminPage() {
   const [isSubmittingTag, setIsSubmittingTag] = useState(false);
   const [deletingTagId, setDeletingTagId] = useState(null);
 
-  // 태그 수정 모달 관련 상태
-  const [editingTag, setEditingTag] = useState(null);
-  const [editTagName, setEditTagName] = useState("");
-  const [isUpdatingTag, setIsUpdatingTag] = useState(false);
-
   // GET /api/places/public 전체 장소 조회
   const loadPlaces = async () => {
     setIsLoadingPlaces(true);
     setPlacesError(null);
     try {
-      const data = await fetchPublicPlaces();
-      setPlaces(data || []);
+      const data = await fetchPublicPlaces(0, 100);
+      const list = Array.isArray(data) ? data : (data?.content || []);
+      setPlaces(list);
     } catch (err) {
       console.error("Admin Places Load Error:", err);
       setPlacesError(err.message || "공용 장소 목록을 불러오지 못했습니다.");
@@ -201,34 +197,6 @@ export default function AdminPage() {
       setTagsError(err.message || "태그 생성에 실패했습니다.");
     } finally {
       setIsSubmittingTag(false);
-    }
-  };
-
-  // PUT /api/admin/tags/{tagId} 태그 수정 모달 열기
-  const handleOpenEditTagModal = (tag) => {
-    setEditingTag(tag);
-    setEditTagName(tag.name || "");
-  };
-
-  // PUT /api/admin/tags/{tagId} 태그 수정 제출
-  const handleUpdateTagSubmit = async (e) => {
-    e.preventDefault();
-    if (!editingTag || !editTagName.trim()) return;
-
-    const tagId = editingTag.tagId || editingTag.id;
-    setIsUpdatingTag(true);
-    setTagsError(null);
-
-    try {
-      await updateAdminTag(tagId, { name: editTagName.trim() });
-      alert(`[#${editTagName.trim()}] 태그 정보가 수정되었습니다.`);
-      setEditingTag(null);
-      loadTags();
-    } catch (err) {
-      console.error("Update Tag Error:", err);
-      setTagsError(err.message || "태그 수정에 실패했습니다.");
-    } finally {
-      setIsUpdatingTag(false);
     }
   };
 
@@ -471,15 +439,7 @@ export default function AdminPage() {
                       <TagIcon size={14} className="text-indigo-600" />
                       <span>#{tag.name}</span>
                       <span className="text-[10px] font-semibold text-gray-400">({tagId})</span>
-                      <div className="flex items-center space-x-0.5 ml-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditTagModal(tag)}
-                          className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                          title="태그 수정 (PUT)"
-                        >
-                          <Edit2 size={13} />
-                        </button>
+                      <div className="flex items-center ml-1">
                         <button
                           type="button"
                           onClick={() => handleDeleteTag(tagId, tag.name)}
@@ -597,59 +557,6 @@ export default function AdminPage() {
                     <Loader2 size={16} className="animate-spin" />
                   ) : (
                     <span>{editingPlace ? "수정 완료" : "장소 등록"}</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 태그 수정 팝업 모달 (PUT /api/admin/tags/{tagId}) */}
-      {editingTag && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-xl space-y-4 text-left">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">
-                태그 수정 (PUT #{editingTag.tagId || editingTag.id})
-              </h3>
-              <button
-                onClick={() => setEditingTag(null)}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateTagSubmit} className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">태그 이름</label>
-                <input
-                  type="text"
-                  value={editTagName}
-                  onChange={(e) => setEditTagName(e.target.value)}
-                  placeholder="수정할 태그명 입력"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-black"
-                />
-              </div>
-
-              <div className="flex space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingTag(null)}
-                  className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingTag || !editTagName.trim()}
-                  className="flex-1 py-2 rounded-xl bg-black text-white text-xs font-bold hover:bg-gray-800 flex items-center justify-center space-x-1 cursor-pointer"
-                >
-                  {isUpdatingTag ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <span>수정 완료</span>
                   )}
                 </button>
               </div>

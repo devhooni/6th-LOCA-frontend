@@ -4,6 +4,53 @@ const normalizedBaseUrl = rawBaseUrl.startsWith("http://") || rawBaseUrl.startsW
   : `https://${rawBaseUrl}`;
 const BASE_DOMAIN = normalizedBaseUrl.replace(/\/swagger-ui\/?$/, "").replace(/\/+$/, "");
 
+// ─────────────────────────────────────────────
+// 세션 메모리 캐시 (브라우저 탭이 유지되는 동안 유효)
+// 동일 API를 여러 페이지에서 중복 호출하는 것을 방지합니다.
+// ─────────────────────────────────────────────
+const _cache = {};
+
+/**
+ * TTL 기반 캐시 래퍼. 유효 기간 내라면 캐시된 결과를 즉시 반환하고,
+ * 만료되었거나 처음 요청이라면 fetcher()를 실행 후 결과를 캐시합니다.
+ * @param {string} key 캐시 키
+ * @param {number} ttlMs TTL (밀리초)
+ * @param {() => Promise<any>} fetcher 실제 API 호출 함수
+ */
+function withCache(key, ttlMs, fetcher) {
+  const now = Date.now();
+  if (_cache[key] && (now - _cache[key].ts) < ttlMs) {
+    return Promise.resolve(_cache[key].data);
+  }
+  return fetcher().then((data) => {
+    _cache[key] = { data, ts: now };
+    return data;
+  });
+}
+
+/**
+ * 특정 캐시 키를 즉시 무효화합니다.
+ * 리뷰 작성/삭제 등 데이터 변경 후 호출해야 합니다.
+ * @param {string} key 무효화할 캐시 키 (예: "myReviews")
+ */
+export function invalidateCache(key) {
+  delete _cache[key];
+}
+
+
+function getApiUrl(path) {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      import.meta.env.DEV)
+  ) {
+    return cleanPath;
+  }
+  return `${BASE_DOMAIN}${cleanPath}`;
+}
+
 
 
 // 백엔드 연결 실패 또는 인증 만료 시 안전하게 온보딩으로 이동시키는 헬퍼 함수
@@ -64,8 +111,7 @@ export async function apiFetch(url, options = {}) {
 
 // 회원가입 API 호출 (/api/auth/signup) -> email, password 전송
 export async function signupUser({ email, password }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/auth/signup" : `${BASE_DOMAIN}/api/auth/signup`;
+  const url = getApiUrl("/api/auth/signup");
 
   const response = await apiFetch(url, {
     method: "POST",
@@ -90,8 +136,7 @@ export async function signupUser({ email, password }) {
 
 // 로그인 API 호출 (/api/auth/login) -> JWT 토큰 수신 및 localStorage 저장
 export async function loginUser({ email, password }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/auth/login" : `${BASE_DOMAIN}/api/auth/login`;
+  const url = getApiUrl("/api/auth/login");
 
   const response = await apiFetch(url, {
     method: "POST",
@@ -131,16 +176,23 @@ export async function loginUser({ email, password }) {
   return data;
 }
 
-// 추천 장소 API 호출 (/api/recommendations/explore?tagIds=1) -> JWT Bearer 토큰 연동
-export async function fetchExploreRecommendations(tagIds = [1]) {
-  const isDev = import.meta.env.DEV;
-  const queryString = Array.isArray(tagIds) && tagIds.length > 0 
-    ? `?tagIds=${tagIds.join("&tagIds=")}` 
-    : "?tagIds=1";
+// 추천 장소 API 호출 (/api/recommendations/explore?tagIds=1&page=0&size=20) -> JWT Bearer 토큰 연동
+export async function fetchExploreRecommendations(tagIds = [1], page = 0, size = 20) {
+  const queryParams = new URLSearchParams();
 
-  const url = isDev 
-    ? `/api/recommendations/explore${queryString}` 
-    : `${BASE_DOMAIN}/api/recommendations/explore${queryString}`;
+  if (Array.isArray(tagIds) && tagIds.length > 0) {
+    tagIds.forEach((id) => queryParams.append("tagIds", id.toString()));
+  } else if (tagIds) {
+    queryParams.append("tagIds", tagIds.toString());
+  } else {
+    queryParams.append("tagIds", "1");
+  }
+
+  if (page !== undefined && page !== null) queryParams.append("page", page.toString());
+  if (size !== undefined && size !== null) queryParams.append("size", size.toString());
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+  const url = getApiUrl(`/api/recommendations/explore${queryString}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -159,15 +211,34 @@ export async function fetchExploreRecommendations(tagIds = [1]) {
     throw new Error(errorMsg);
   }
 
-  return await response.json();
+  const data = await response.json();
+  if (data && Array.isArray(data.content)) {
+    return {
+      content: data.content,
+      page: data.page ?? page,
+      size: data.size ?? size,
+      hasNext: Boolean(data.hasNext),
+    };
+  }
+  if (Array.isArray(data)) {
+    return {
+      content: data,
+      page: 0,
+      size: data.length,
+      hasNext: false,
+    };
+  }
+  return {
+    content: [],
+    page: 0,
+    size: 20,
+    hasNext: false,
+  };
 }
 
 // 공용 장소 상세 조회 API 호출 (/api/places/public/{placeId}) -> JWT Bearer 토큰 연동
 export async function fetchPublicPlaceDetail(placeId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev
-    ? `/api/places/public/${placeId}`
-    : `${BASE_DOMAIN}/api/places/public/${placeId}`;
+  const url = getApiUrl(`/api/places/public/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -191,8 +262,7 @@ export async function fetchPublicPlaceDetail(placeId) {
 
 // 사용자 맞춤/개인 장소 등록 API 호출 (POST /api/places/custom) -> JWT Bearer 토큰 연동
 export async function createCustomPlace({ name, address, lat, lng, isShareable }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/places/custom" : `${BASE_DOMAIN}/api/places/custom`;
+  const url = getApiUrl("/api/places/custom");
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -223,8 +293,7 @@ export async function createCustomPlace({ name, address, lat, lng, isShareable }
 
 // 내 커스텀/개인 장소 목록 조회 API 호출 (GET /api/places/custom) -> JWT Bearer 토큰 연동
 export async function fetchPrivatePlaces() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/places/custom" : `${BASE_DOMAIN}/api/places/custom`;
+  const url = getApiUrl("/api/places/custom");
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
@@ -246,13 +315,19 @@ export async function fetchPrivatePlaces() {
     throw new Error(errorMsg);
   }
 
-  return await response.json();
+  const data = await response.json();
+  if (data && Array.isArray(data.content)) {
+    return data.content;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
 }
 
 // 내 커스텀/개인 장소 단건 조회 API 호출 (GET /api/places/custom/{placeId})
 export async function fetchPrivatePlaceDetail(placeId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/places/custom/${placeId}` : `${BASE_DOMAIN}/api/places/custom/${placeId}`;
+  const url = getApiUrl(`/api/places/custom/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -275,8 +350,7 @@ export async function fetchPrivatePlaceDetail(placeId) {
 
 // 내 커스텀/개인 장소 수정 API 호출 (PUT /api/places/custom/{placeId})
 export async function updatePrivatePlace(placeId, { name, address, lat, lng, isShareable }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/places/custom/${placeId}` : `${BASE_DOMAIN}/api/places/custom/${placeId}`;
+  const url = getApiUrl(`/api/places/custom/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -306,8 +380,7 @@ export async function updatePrivatePlace(placeId, { name, address, lat, lng, isS
 
 // 내 커스텀/개인 장소 삭제 API 호출 (DELETE /api/places/custom/{placeId})
 export async function deletePrivatePlace(placeId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/places/custom/${placeId}` : `${BASE_DOMAIN}/api/places/custom/${placeId}`;
+  const url = getApiUrl(`/api/places/custom/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -328,35 +401,67 @@ export async function deletePrivatePlace(placeId) {
   return true;
 }
 
-// 전체 공용 장소 목록 조회 API 호출 (GET /api/places/public) -> JWT Bearer 토큰 연동
-export async function fetchPublicPlaces() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/places/public" : `${BASE_DOMAIN}/api/places/public`;
+// 전체 공용 장소 목록 조회 API 호출 (GET /api/places/public?page=0&size=20) -> JWT Bearer 토큰 연동
+export function fetchPublicPlaces(page = 0, size = 20) {
+  return withCache(`publicPlaces:${page}:${size}`, 3 * 60 * 1000, async () => {
+    const queryParams = new URLSearchParams();
+    if (page !== undefined && page !== null) queryParams.append("page", page.toString());
+    if (size !== undefined && size !== null) queryParams.append("size", size.toString());
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
 
-  const token = localStorage.getItem("accessToken");
-  const headers = { "Content-Type": "application/json" };
+    const url = getApiUrl(`/api/places/public${queryString}`);
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+    const token = localStorage.getItem("accessToken");
+    const headers = { "Content-Type": "application/json" };
 
-  const response = await apiFetch(url, {
-    method: "GET",
-    headers: headers,
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "공용 장소 목록 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    // Spring Page 응답 구조 ({ content: [...], page, size, hasNext, totalPages })
+    if (data && Array.isArray(data.content)) {
+      return {
+        content: data.content,
+        page: data.page ?? page,
+        size: data.size ?? size,
+        hasNext: Boolean(data.hasNext),
+        totalPages: data.totalPages ?? (data.hasNext ? page + 2 : page + 1),
+      };
+    }
+    if (Array.isArray(data)) {
+      return {
+        content: data,
+        page: 0,
+        size: data.length,
+        hasNext: false,
+        totalPages: 1,
+      };
+    }
+    return {
+      content: [],
+      page: 0,
+      size: 20,
+      hasNext: false,
+      totalPages: 1,
+    };
   });
-
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "공용 장소 목록 조회 실패");
-    throw new Error(errorMsg);
-  }
-
-  return await response.json();
 }
+
 
 // [어드민 API] 공용 장소 신규 등록 (POST /api/admin/places)
 export async function createAdminPlace({ name, kakaoPlaceId, address, lat, lng }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/admin/places" : `${BASE_DOMAIN}/api/admin/places`;
+  const url = getApiUrl("/api/admin/places");
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -386,8 +491,7 @@ export async function createAdminPlace({ name, kakaoPlaceId, address, lat, lng }
 
 // [어드민 API] 장소 정보 수정 (PUT /api/admin/places/{placeId})
 export async function updateAdminPlace(placeId, { name, address, lat, lng }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/admin/places/${placeId}` : `${BASE_DOMAIN}/api/admin/places/${placeId}`;
+  const url = getApiUrl(`/api/admin/places/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -416,8 +520,7 @@ export async function updateAdminPlace(placeId, { name, address, lat, lng }) {
 
 // [어드민 API] 장소 삭제 (DELETE /api/admin/places/{placeId})
 export async function deleteAdminPlace(placeId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/admin/places/${placeId}` : `${BASE_DOMAIN}/api/admin/places/${placeId}`;
+  const url = getApiUrl(`/api/admin/places/${placeId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -440,8 +543,7 @@ export async function deleteAdminPlace(placeId) {
 
 // [For-You API] 맞춤 추천 잠금/해제 상태 조회 (GET /api/recommendations/for-you/status)
 export async function fetchForYouStatus() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/recommendations/for-you/status" : `${BASE_DOMAIN}/api/recommendations/for-you/status`;
+  const url = getApiUrl("/api/recommendations/for-you/status");
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
@@ -468,8 +570,7 @@ export async function fetchForYouStatus() {
 
 // [For-You API] 맞춤 추천 장소 5개 조회 (GET /api/recommendations/for-you)
 export async function fetchForYouRecommendations() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/recommendations/for-you" : `${BASE_DOMAIN}/api/recommendations/for-you`;
+  const url = getApiUrl("/api/recommendations/for-you");
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
@@ -495,19 +596,69 @@ export async function fetchForYouRecommendations() {
 }
 
 // 내 작성 장소/리뷰 목록 조회 API 호출 (GET /api/users/me/reviews)
-export async function fetchMyReviews() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/users/me/reviews" : `${BASE_DOMAIN}/api/users/me/reviews`;
+export function fetchMyReviews() {
+  return withCache("myReviews", 60 * 1000, async () => {
+    const url = getApiUrl("/api/users/me/reviews");
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    };
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "내 리뷰 목록 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
+  });
+}
+
+
+// 특정 리뷰 상세 조회 API 호출 (GET /api/users/me/reviews/{visitId}) -> JWT Bearer 토큰 필요
+export async function fetchReviewDetail(visitId) {
+  const url = getApiUrl(`/api/users/me/reviews/${visitId}`);
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
     throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
   }
 
-  const headers = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`,
-  };
+  const response = await apiFetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "리뷰 상세 조회 실패");
+    throw new Error(errorMsg);
+  }
+
+  return await response.json();
+}
+
+// 특정 장소에 등록된 리뷰 목록 조회 API 호출 (GET /api/places/{placeId}/reviews?page={page})
+export async function fetchPlaceReviews(placeId, page = 0) {
+  const url = getApiUrl(`/api/places/${placeId}/reviews?page=${page}`);
+
+  const token = localStorage.getItem("accessToken");
+  const headers = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   const response = await apiFetch(url, {
     method: "GET",
@@ -515,19 +666,31 @@ export async function fetchMyReviews() {
   });
 
   if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "내 리뷰 목록 조회 실패");
+    const errorMsg = await extractErrorMessage(response, "장소 리뷰 목록 조회 실패");
     throw new Error(errorMsg);
   }
 
-  return await response.json();
+  const data = await response.json();
+  // SliceResponsePlaceReviewResponse: { content: Array, page: number, size: number, hasNext: boolean }
+  if (Array.isArray(data)) {
+    return {
+      content: data,
+      page: 0,
+      size: data.length,
+      hasNext: false,
+    };
+  }
+  return {
+    content: data?.content || [],
+    page: data?.page ?? 0,
+    size: data?.size ?? 20,
+    hasNext: Boolean(data?.hasNext),
+  };
 }
 
 // 리뷰 삭제 API 호출 (DELETE /api/users/me/reviews/{visitId})
 export async function deleteReview(visitId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev
-    ? `/api/users/me/reviews/${visitId}`
-    : `${BASE_DOMAIN}/api/users/me/reviews/${visitId}`;
+  const url = getApiUrl(`/api/users/me/reviews/${visitId}`);
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
@@ -547,7 +710,42 @@ export async function deleteReview(visitId) {
     throw new Error(errorMsg);
   }
 
+  // 리뷰 삭제 성공 시 캐시 무효화
+  invalidateCache("myReviews");
   return true;
+}
+
+
+// 리뷰 이미지 업로드 API 호출 (POST /api/users/me/review-images) -> multipart/form-data
+export async function uploadReviewImage(file) {
+  const url = getApiUrl("/api/users/me/review-images");
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiFetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Note: Do NOT set Content-Type header manually when sending FormData,
+      // the browser will automatically set it with boundary
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "이미지 업로드 실패");
+    throw new Error(errorMsg);
+  }
+
+  // Swagger schema: ImageUploadResponse { imageUrl: string }
+  const data = await response.json();
+  return data.imageUrl || data;
 }
 
 // 리뷰 등록 API 호출 (POST /api/users/me/reviews) -> JWT Bearer 토큰 연동
@@ -561,8 +759,7 @@ export async function createReview({
   tagIds,
   imageUrls,
 }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/users/me/reviews" : `${BASE_DOMAIN}/api/users/me/reviews`;
+  const url = getApiUrl("/api/users/me/reviews");
 
   const token = localStorage.getItem("accessToken");
   if (!token) {
@@ -596,37 +793,41 @@ export async function createReview({
     throw new Error(errorMsg);
   }
 
+  // 리뷰 등록 성공 시 캐시 무효화 (다음 fetchMyReviews 호출 시 최신 데이터 반영)
+  invalidateCache("myReviews");
   return await response.json();
 }
+
 
 // 전체 태그 목록 조회 API 호출 (GET /api/tags) -> JWT Bearer 토큰 필요
-export async function fetchTags() {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/tags" : `${BASE_DOMAIN}/api/tags`;
+export function fetchTags() {
+  return withCache("tags", 5 * 60 * 1000, async () => {
+    const url = getApiUrl("/api/tags");
 
-  const token = localStorage.getItem("accessToken");
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+    const token = localStorage.getItem("accessToken");
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
 
-  const response = await apiFetch(url, {
-    method: "GET",
-    headers: headers,
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "태그 목록 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
   });
-
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "태그 목록 조회 실패");
-    throw new Error(errorMsg);
-  }
-
-  return await response.json();
 }
+
 
 // [어드민 API] 신규 태그 추가 (POST /api/admin/tags)
 export async function createAdminTag({ name }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? "/api/admin/tags" : `${BASE_DOMAIN}/api/admin/tags`;
+  const url = getApiUrl("/api/admin/tags");
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -650,8 +851,7 @@ export async function createAdminTag({ name }) {
 
 // [어드민 API] 태그 삭제 (DELETE /api/admin/tags/{tagId})
 export async function deleteAdminTag(tagId) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/admin/tags/${tagId}` : `${BASE_DOMAIN}/api/admin/tags/${tagId}`;
+  const url = getApiUrl(`/api/admin/tags/${tagId}`);
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
@@ -672,27 +872,126 @@ export async function deleteAdminTag(tagId) {
   return true;
 }
 
-// [어드민 API] 태그 수정 (PUT /api/admin/tags/{tagId})
-export async function updateAdminTag(tagId, { name }) {
-  const isDev = import.meta.env.DEV;
-  const url = isDev ? `/api/admin/tags/${tagId}` : `${BASE_DOMAIN}/api/admin/tags/${tagId}`;
-
+// [어드민 API] 태그 수정 (POST / PUT / PATCH /api/admin/tags)
+export async function updateAdminTag(tagId, { name, tagName }) {
+  const finalName = (name || tagName || "").trim();
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await apiFetch(url, {
-    method: "PUT",
-    headers: headers,
-    body: JSON.stringify({ name }),
+  const payload = JSON.stringify({
+    name: finalName,
+    tagName: finalName,
   });
+
+  // 1. POST /api/admin/tags 또는 POST /api/admin/tags/{tagId} 시도
+  let url = getApiUrl(`/api/admin/tags`);
+  let response = await apiFetch(url, {
+    method: "POST",
+    headers: headers,
+    body: payload,
+  });
+
+  // 2. 만약 405 또는 404 라면 POST /api/admin/tags/{tagId} 시도
+  if (response.status === 405 || response.status === 404) {
+    url = getApiUrl(`/api/admin/tags/${tagId}`);
+    response = await apiFetch(url, {
+      method: "POST",
+      headers: headers,
+      body: payload,
+    });
+  }
+
+  // 3. 만약 405 라면 PUT /api/admin/tags/{tagId} 시도
+  if (response.status === 405) {
+    url = getApiUrl(`/api/admin/tags/${tagId}`);
+    response = await apiFetch(url, {
+      method: "PUT",
+      headers: headers,
+      body: payload,
+    });
+  }
+
+  // 4. 만약 405 라면 PATCH /api/admin/tags/{tagId} 시도
+  if (response.status === 405) {
+    url = getApiUrl(`/api/admin/tags/${tagId}`);
+    response = await apiFetch(url, {
+      method: "PATCH",
+      headers: headers,
+      body: payload,
+    });
+  }
 
   if (!response.ok) {
     const errorMsg = await extractErrorMessage(response, "태그 수정 실패");
     throw new Error(errorMsg);
   }
 
-  return await response.json();
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return await response.json();
+  }
+  return true;
+}
+
+// [내 프로필 아이콘 API] 현재 유저 아이콘 ID 조회 (GET /api/users/me/icon)
+export async function fetchUserIcon() {
+  const url = getApiUrl("/api/users/me/icon");
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    throw new Error("로그인이 필요합니다.");
+  }
+
+  const response = await apiFetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "아이콘 조회 실패");
+    throw new Error(errorMsg);
+  }
+
+  const data = await response.json();
+  // iconId 또는 icon 숫자 형태 파싱
+  const iconId = typeof data === "number" ? data : (data?.iconId ?? data?.id ?? data?.icon ?? 1);
+  return iconId;
+}
+
+// [내 프로필 아이콘 API] 유저 아이콘 ID 수정 (PUT /api/users/me/icon)
+export async function updateUserIcon(iconId) {
+  const url = getApiUrl("/api/users/me/icon");
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    throw new Error("로그인이 필요합니다.");
+  }
+
+  const numericId = parseInt(iconId, 10) || 1;
+
+  const response = await apiFetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ iconId: numericId }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await extractErrorMessage(response, "아이콘 수정 실패");
+    throw new Error(errorMsg);
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return { iconId: numericId };
+  }
 }

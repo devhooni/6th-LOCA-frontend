@@ -15,21 +15,42 @@ import {
   Plus,
   MessageSquareText,
   Calendar,
+  Check,
 } from "lucide-react";
 import {
   fetchPrivatePlaces,
   fetchPublicPlaces,
+  fetchTags,
   updatePrivatePlace,
   deletePrivatePlace,
   fetchMyReviews,
   deleteReview,
+  fetchUserIcon,
+  updateUserIcon,
 } from "../services/placeService";
 
 import aloneImg from "/imgs/alone.png";
+
 import friendsImg from "/imgs/friends.png";
 import coupleImg from "/imgs/couple.png";
 import familyImg from "/imgs/family.png";
 import etcImg from "/imgs/etc.png";
+
+// 12종 프로필 아이콘 프리셋 (id 1: 기본 프로필 + id 2~12: 11종 2D 카툰 로카프렌즈 아이콘)
+export const PROFILE_ICONS = [
+  { id: 1, type: "icon", icon: User, bg: "bg-gray-100", color: "text-gray-500" },
+  { id: 2, type: "image", src: "/imgs/icons/icon_2.png", bg: "bg-white" },
+  { id: 3, type: "image", src: "/imgs/icons/icon_3.png", bg: "bg-white" },
+  { id: 4, type: "image", src: "/imgs/icons/icon_4.png", bg: "bg-white" },
+  { id: 5, type: "image", src: "/imgs/icons/icon_5.png", bg: "bg-white" },
+  { id: 6, type: "image", src: "/imgs/icons/icon_6.png", bg: "bg-white" },
+  { id: 7, type: "image", src: "/imgs/icons/icon_7.png", bg: "bg-white" },
+  { id: 8, type: "image", src: "/imgs/icons/icon_8.png", bg: "bg-white" },
+  { id: 9, type: "image", src: "/imgs/icons/icon_9.png", bg: "bg-white" },
+  { id: 10, type: "image", src: "/imgs/icons/icon_10.png", bg: "bg-white" },
+  { id: 11, type: "image", src: "/imgs/icons/icon_11.png", bg: "bg-white" },
+  { id: 12, type: "image", src: "/imgs/icons/icon_12.png", bg: "bg-white" },
+];
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -65,10 +86,31 @@ export default function MyPage() {
   // 장소 삭제 진행 중인 ID
   const [deletingPlaceId, setDeletingPlaceId] = useState(null);
 
-  // 장소 ID별 장소 객체/이름 매핑 맵
+  // 장소 ID별 장소 객체/이름 매핑 맵 & 태그 ID별 태그명 매핑 맵
   const [placeMap, setPlaceMap] = useState({});
+  const [tagMap, setTagMap] = useState({});
 
-  // 내 정보 및 내가 생성한 커스텀 장소 목록 불러오기
+  // 전체 태그 목록 불러와 tagMap 완성
+  const loadTags = async () => {
+    try {
+      const tags = await fetchTags();
+      if (Array.isArray(tags)) {
+        const tMap = {};
+        tags.forEach((t) => {
+          const tId = t.tagId ?? t.id;
+          const tName = t.name ?? t.tagName;
+          if (tId !== undefined && tName) {
+            tMap[tId] = tName;
+          }
+        });
+        setTagMap(tMap);
+      }
+    } catch (e) {
+      console.warn("Tags load in MyPage warn:", e);
+    }
+  };
+
+  // 내 정보 및 내가 생성한 커스텀 장소 + 공용 장소 목록 불러와 placeMap 완성
   const loadMyPlaces = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -77,30 +119,23 @@ export default function MyPage() {
     setPlacesError(null);
 
     try {
-      let privates = [];
-      let publics = [];
+      // 개인 장소와 공용 장소를 병렬로 한 번에 요청 (캐시 경유)
+      const [privRes, pubRes] = await Promise.all([
+        fetchPrivatePlaces().catch((e) => { console.warn("Private places load warn:", e); return []; }),
+        fetchPublicPlaces(0, 100).catch((e) => { console.warn("Public places load warn:", e); return { content: [] }; }),
+      ]);
 
-      try {
-        const pRes = await fetchPrivatePlaces();
-        if (Array.isArray(pRes)) privates = pRes;
-      } catch (e) {
-        console.warn("Private places load warn:", e);
-      }
-
-      try {
-        const pubRes = await fetchPublicPlaces();
-        if (Array.isArray(pubRes)) publics = pubRes;
-      } catch (e) {
-        console.warn("Public places load warn:", e);
-      }
+      let privates = Array.isArray(privRes) ? privRes : (privRes?.content || []);
+      let publics = Array.isArray(pubRes) ? pubRes : (pubRes?.content || []);
 
       setMyPlaces(privates);
 
-      // 전체 장소 맵 구성 (placeId -> place object)
+      // 전체 장소 맵 구성 (placeId, id, kakaoPlaceId -> place object)
       const mapObj = {};
       [...privates, ...publics].forEach((p) => {
-        const pId = p.placeId || p.id;
-        if (pId) mapObj[pId] = p;
+        const pId = p.placeId ?? p.id;
+        if (pId !== undefined && pId !== null) mapObj[pId] = p;
+        if (p.kakaoPlaceId) mapObj[p.kakaoPlaceId] = p;
       });
       setPlaceMap(mapObj);
     } catch (err) {
@@ -110,6 +145,7 @@ export default function MyPage() {
       setIsLoadingPlaces(false);
     }
   };
+
 
   // 내 작성 리뷰 목록 불러오기
   const loadMyReviews = async () => {
@@ -130,12 +166,50 @@ export default function MyPage() {
     }
   };
 
+  // 프로필 아이콘 관련 상태 (1~12)
+  const [currentIconId, setCurrentIconId] = useState(1);
+  const [showIconModal, setShowIconModal] = useState(false);
+  const [isSavingIcon, setIsSavingIcon] = useState(false);
+  const [iconError, setIconError] = useState(null);
+
+  // 유저 아이콘 ID 불러오기 (GET /api/users/me/icon)
+  const loadUserIcon = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      const iconId = await fetchUserIcon();
+      if (iconId) {
+        setCurrentIconId(Number(iconId));
+      }
+    } catch (e) {
+      console.warn("User icon load warn:", e);
+    }
+  };
+
+  // 아이콘 변경 제출 (PUT /api/users/me/icon)
+  const handleSelectIcon = async (iconId) => {
+    setIsSavingIcon(true);
+    setIconError(null);
+    try {
+      await updateUserIcon(iconId);
+      setCurrentIconId(Number(iconId));
+      setShowIconModal(false);
+    } catch (err) {
+      console.error("Update User Icon Error:", err);
+      setIconError(err.message || "아이콘 변경에 실패했습니다.");
+    } finally {
+      setIsSavingIcon(false);
+    }
+  };
+
   useEffect(() => {
     const savedEmail = localStorage.getItem("userEmail");
     if (savedEmail) {
       setUserEmail(savedEmail);
     }
 
+    loadUserIcon();
+    loadTags();
     loadMyPlaces();
     loadMyReviews();
   }, []);
@@ -260,21 +334,56 @@ export default function MyPage() {
 
       {/* User Info Profile Card */}
       <div className="flex items-center justify-between bg-white py-2">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-            <User size={24} />
+        <div className="flex items-center space-x-3.5">
+          {/* 내 프로필 아이콘 아바타 + 우측 하단 수정 버튼 */}
+          <div className="relative group">
+            {/* 아바타 원형 컨테이너 */}
+            <div
+              onClick={() => setShowIconModal(true)}
+              className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden border border-gray-100 shadow-2xs cursor-pointer transition-transform active:scale-95 ${
+                PROFILE_ICONS.find((i) => i.id === currentIconId)?.bg || "bg-gray-100"
+              }`}
+            >
+              {(() => {
+                const current = PROFILE_ICONS.find((i) => i.id === currentIconId) || PROFILE_ICONS[0];
+                if (current.type === "image") {
+                  return (
+                    <img
+                      src={current.src}
+                      alt={current.name}
+                      className="w-11 h-11 object-contain drop-shadow-xs"
+                    />
+                  );
+                }
+                if (current.type === "icon-svg") {
+                  return <span className="text-2xl">{current.emoji}</span>;
+                }
+                return <User size={26} className={current.color || "text-gray-500"} />;
+              })()}
+            </div>
+
+            {/* 오른쪽 아래 수정(연필) 아이콘 버튼 */}
+            <button
+              type="button"
+              onClick={() => setShowIconModal(true)}
+              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#111] text-white flex items-center justify-center shadow-md hover:bg-gray-800 active:scale-90 transition-all cursor-pointer ring-2 ring-white"
+              aria-label="아이콘 수정"
+            >
+              <Edit2 size={11} strokeWidth={2.5} />
+            </button>
           </div>
+
           <div>
             <p className="text-base font-bold text-[#111]">
               {userEmail ? userEmail.split("@")[0] : "사용자"}
             </p>
-            <p className="text-sm text-gray-500">{userEmail || "로그인이 필요합니다"}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{userEmail || "로그인이 필요합니다"}</p>
           </div>
         </div>
         
         <button
           onClick={() => setShowLogoutConfirm(true)}
-          className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors px-2 py-1"
         >
           로그아웃
         </button>
@@ -431,8 +540,13 @@ export default function MyPage() {
               {myReviews.map((review) => {
                 const reviewId = review.reviewId || review.visitId || review.id;
                 const isDeletingThis = deletingReviewId === reviewId;
-                const targetPlace = placeMap[review.placeId];
-                const placeName = targetPlace ? targetPlace.name : `장소 #${review.placeId}`;
+                const targetPlace = placeMap[review.placeId] || placeMap[review.place?.placeId] || review.place;
+                const placeName = review.placeName || review.place?.name || (targetPlace ? targetPlace.name : `장소 #${review.placeId}`);
+
+                // 리뷰에 첨부된 실제 사진 URL (imageUrls 배열의 첫 번째 또는 imageUrl)
+                const reviewPhoto = (Array.isArray(review.imageUrls) && review.imageUrls.length > 0)
+                  ? review.imageUrls[0]
+                  : review.imageUrl || targetPlace?.imageUrl;
 
                 const handleNavigateToPlace = () => {
                   if (targetPlace) {
@@ -451,14 +565,14 @@ export default function MyPage() {
                     onClick={handleNavigateToPlace}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      {/* 좌측: 장소명, 뱃지, 제목, 방문날짜, 내용 미리보기 */}
+                      {/* 좌측: 장소명, 동행자 뱃지(텍스트+아이콘), 제목, 방문날짜, 내용 미리보기 */}
                       <div className="flex flex-col min-w-0 flex-1 space-y-1">
                         <div className="flex items-center space-x-1.5 mb-0.5">
-                          <span className="text-xs font-semibold text-gray-500 truncate">
+                          <span className="text-xs font-bold text-gray-700 truncate">
                             {placeName}
                           </span>
                           {compConfig && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-bold">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-xs font-bold shadow-2xs">
                               {compConfig.label}
                             </span>
                           )}
@@ -479,7 +593,7 @@ export default function MyPage() {
                         </p>
                       </div>
 
-                      {/* 우측: 큼직한 w-24 h-24 마스코트 썸네일 & 삭제 버튼 */}
+                      {/* 우측: 실제 리뷰 사진 썸네일 & 삭제 버튼 */}
                       <div className="flex flex-col items-end space-y-2 flex-none">
                         <button
                           onClick={(e) => {
@@ -487,7 +601,7 @@ export default function MyPage() {
                             handleDeleteReview(review);
                           }}
                           disabled={isDeletingThis}
-                          className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-50 transition-colors"
+                          className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           {isDeletingThis ? (
                             <Loader2 size={15} className="animate-spin text-red-500" />
@@ -496,30 +610,96 @@ export default function MyPage() {
                           )}
                         </button>
 
-                        {compConfig && (
-                          <div className="w-24 h-24 rounded-2xl bg-gray-50/80 border border-gray-100 flex items-center justify-center p-2 overflow-hidden shadow-2xs">
+                        <div className="w-20 h-20 rounded-md bg-gray-50 border border-gray-200 overflow-hidden shadow-2xs flex items-center justify-center">
+                          {reviewPhoto ? (
+                            <img
+                              src={reviewPhoto}
+                              alt={placeName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                if (compConfig) e.target.src = compConfig.img;
+                              }}
+                            />
+                          ) : compConfig ? (
                             <img
                               src={compConfig.img}
                               alt={compConfig.label}
-                              className="w-full h-full object-contain filter drop-shadow-xs"
+                              className="w-full h-full object-cover"
                             />
-                          </div>
-                        )}
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                              <MapPin size={20} />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {Array.isArray(review.keywords) && review.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {review.keywords.map((kw, idx) => (
-                          <span
-                            key={idx}
-                            className="bg-gray-100 text-gray-600 text-xs rounded-lg px-2 py-0.5"
-                          >
-                            {kw}
-                          </span>
+                    {/* 여러 장의 사진이 첨부된 경우 작은 썸네일 목록 */}
+                    {Array.isArray(review.imageUrls) && review.imageUrls.length > 1 && (
+                      <div className="flex gap-1.5 mt-2.5 overflow-x-auto no-scrollbar">
+                        {review.imageUrls.map((imgUrl, imgIdx) => (
+                          <img
+                            key={imgIdx}
+                            src={imgUrl}
+                            alt={`사진 ${imgIdx + 1}`}
+                            className="w-10 h-10 rounded-md object-cover border border-gray-200 flex-none"
+                          />
                         ))}
                       </div>
                     )}
+
+                    {/* 태그 & 키워드 칩 표시 (분위기 태그 tagIds + 커스텀 키워드 keywords) */}
+                    {(() => {
+                      // 1. tagIds 기반 태그명 추출
+                      const resolvedTags = [];
+                      if (Array.isArray(review.tagIds)) {
+                        review.tagIds.forEach((tId) => {
+                          const name = tagMap[tId];
+                          if (name && !resolvedTags.includes(name)) {
+                            resolvedTags.push(name);
+                          }
+                        });
+                      }
+                      // 2. 만약 장소 객체에 tags가 있다면 보강
+                      if (resolvedTags.length === 0 && Array.isArray(targetPlace?.tags)) {
+                        targetPlace.tags.forEach((t) => {
+                          const name = typeof t === "string" ? t : (t.name || t.tagName);
+                          if (name && !resolvedTags.includes(name)) {
+                            resolvedTags.push(name);
+                          }
+                        });
+                      }
+
+                      // 3. 커스텀 키워드
+                      const customKws = Array.isArray(review.keywords) ? review.keywords : [];
+
+                      if (resolvedTags.length === 0 && customKws.length === 0) return null;
+
+                      return (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {/* 분위기 태그 (tagIds) */}
+                          {resolvedTags.map((tagText, idx) => (
+                            <span
+                              key={`tag-${idx}`}
+                              className="bg-indigo-50 text-indigo-700 font-medium text-xs rounded-lg px-2 py-0.5"
+                            >
+                              #{tagText}
+                            </span>
+                          ))}
+
+                          {/* 커스텀 키워드 (keywords) */}
+                          {customKws.map((kw, idx) => (
+                            <span
+                              key={`kw-${idx}`}
+                              className="bg-gray-100 text-gray-600 text-xs rounded-lg px-2 py-0.5"
+                            >
+                              #{kw}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -598,6 +778,72 @@ export default function MyPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 프로필 아이콘 변경 모달 (12종 프리셋 선택) */}
+      {showIconModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm text-left space-y-4 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-none">
+              <h3 className="text-base font-bold text-[#111]">프로필 아이콘 설정</h3>
+              <button
+                onClick={() => setShowIconModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs font-semibold p-1 cursor-pointer"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* 12종 아이콘 그리드 (3열 x 4행) */}
+            {/* 12종 아이콘 그리드 (3열 x 4행) - 각진 박스 & 내부 이중 박스 없이 아이콘 바로 표시 */}
+            <div className="grid grid-cols-3 gap-2 overflow-y-auto p-1 flex-1 no-scrollbar">
+              {PROFILE_ICONS.map((item) => {
+                const isSelected = currentIconId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectIcon(item.id)}
+                    disabled={isSavingIcon}
+                    className={`flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer relative aspect-square overflow-hidden ${
+                      isSelected
+                        ? "border-[#111] bg-gray-50 ring-2 ring-[#111] shadow-xs"
+                        : "border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50/50"
+                    }`}
+                  >
+                    {/* 별도 내부 박스 없이 아이콘/이미지 바로 가득 채워 표시 */}
+                    {item.type === "image" ? (
+                      <img
+                        src={item.src}
+                        alt="profile icon"
+                        className="w-full h-full object-contain p-1"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100/70 rounded-md">
+                        <User size={30} className={item.color || "text-gray-500"} />
+                      </div>
+                    )}
+
+                    {/* 선택됨 뱃지: 오른쪽 아래 초록색 원 안의 흰색 체크마크 */}
+                    {isSelected && (
+                      <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs ring-1.5 ring-white">
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {iconError && <p className="text-xs text-red-500 text-center">{iconError}</p>}
+
+            {isSavingIcon && (
+              <div className="flex items-center justify-center py-1 text-xs text-gray-500 space-x-1.5">
+                <Loader2 size={14} className="animate-spin text-[#111]" />
+                <span>아이콘 변경 중...</span>
+              </div>
+            )}
           </div>
         </div>
       )}

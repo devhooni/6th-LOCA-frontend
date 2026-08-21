@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -13,21 +13,25 @@ import {
   X,
   Check,
   Search,
+  Upload,
 } from "lucide-react";
 import {
   fetchPublicPlaces,
   fetchPrivatePlaces,
   fetchTags,
   createReview,
+  uploadReviewImage,
 } from "../services/placeService";
 
 export default function ReviewPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   // 장소 및 태그 목록 state
   const [places, setPlaces] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
+  const [hasFetchedPlaces, setHasFetchedPlaces] = useState(false);
 
   // 장소 검색어 state
   const [placeSearchTerm, setPlaceSearchTerm] = useState("");
@@ -41,55 +45,54 @@ export default function ReviewPage() {
     new Date().toISOString().slice(0, 10)
   );
 
-  // 키워드 (문자열 태그) & 분위기 태그 (tagIds) & 이미지 URL
+  // 키워드 (문자열 태그) & 분위기 태그 (tagIds) & 이미지 URL 목록
   const [keywordInput, setKeywordInput] = useState("");
   const [keywords, setKeywords] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
-  const [imageUrlInput, setImageUrlInput] = useState("");
   const [imageUrls, setImageUrls] = useState([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // 제출 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // 초기 데이터 (공용 장소 publicPlaces 및 분위기 태그 목록) 로드
+  // 마운트 시 태그 목록만 가볍게 사전 로드 (장소 목록은 장소 박스 클릭 시 요청)
   useEffect(() => {
-    const loadInitialData = async () => {
-      setIsLoadingInitial(true);
-      setErrorMsg(null);
-
-      try {
-        // 공용 장소 목록 로드 (Public 장소만 선택 가능)
-        let publicPlacesList = [];
-        try {
-          const publicRes = await fetchPublicPlaces();
-          if (Array.isArray(publicRes)) publicPlacesList = publicRes;
-        } catch (e) {
-          console.warn("Public places load warn:", e);
-        }
-
-        setPlaces(publicPlacesList);
-        if (publicPlacesList.length > 0) {
-          setSelectedPlaceId(publicPlacesList[0].placeId || publicPlacesList[0].id);
-        }
-
-        // 전체 태그 목록 로드
-        try {
-          const tagsRes = await fetchTags();
-          if (Array.isArray(tagsRes)) setAvailableTags(tagsRes);
-        } catch (e) {
-          console.warn("Tags load warn:", e);
-        }
-      } catch (err) {
-        console.error("Review Page Initial Load Error:", err);
-        setErrorMsg("기본 정보를 불러오는데 실패했습니다.");
-      } finally {
-        setIsLoadingInitial(false);
-      }
-    };
-
-    loadInitialData();
+    fetchTags()
+      .then((tagsRes) => {
+        if (Array.isArray(tagsRes)) setAvailableTags(tagsRes);
+      })
+      .catch((e) => console.warn("Tags load warn:", e));
   }, []);
+
+  // 장소 박스 클릭 시 공용 장소 목록 API 요청 (on-demand loading)
+  const handleFetchPlaces = async () => {
+    if (hasFetchedPlaces || isLoadingPlaces) return;
+    setIsLoadingPlaces(true);
+    setErrorMsg(null);
+
+    try {
+      const publicRes = await fetchPublicPlaces(0, 100);
+      let publicPlacesList = [];
+      if (Array.isArray(publicRes)) {
+        publicPlacesList = publicRes;
+      } else if (publicRes && Array.isArray(publicRes.content)) {
+        publicPlacesList = publicRes.content;
+      }
+
+      setPlaces(publicPlacesList);
+      if (publicPlacesList.length > 0) {
+        setSelectedPlaceId(publicPlacesList[0].placeId || publicPlacesList[0].id);
+      }
+      setHasFetchedPlaces(true);
+    } catch (err) {
+      console.error("Public places load error:", err);
+      setErrorMsg("장소 목록을 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoadingPlaces(false);
+    }
+  };
+
 
   // 키워드 태그 추가
   const handleAddKeyword = (e) => {
@@ -116,15 +119,32 @@ export default function ReviewPage() {
     }
   };
 
-  // 이미지 URL 추가
-  const handleAddImageUrl = (e) => {
-    if (e.key === "Enter" || e.type === "click") {
-      e.preventDefault();
-      const trimmed = imageUrlInput.trim();
-      if (trimmed && !imageUrls.includes(trimmed)) {
-        setImageUrls([...imageUrls, trimmed]);
-        setImageUrlInput("");
+  // 이미지 파일 업로드 (POST /api/users/me/review-images)
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 이미지 파일 형식 검증
+    if (!file.type.startsWith("image/")) {
+      setErrorMsg("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setErrorMsg(null);
+
+    try {
+      const uploadedUrl = await uploadReviewImage(file);
+      if (uploadedUrl && typeof uploadedUrl === "string") {
+        setImageUrls((prev) => [...prev, uploadedUrl]);
       }
+    } catch (err) {
+      console.error("Image Upload Error:", err);
+      setErrorMsg(err.message || "이미지 업로드에 실패했습니다.");
+    } finally {
+      setIsUploadingImage(false);
+      // Reset input value so same file can be selected again if needed
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -203,69 +223,94 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {isLoadingInitial ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-          <Loader2 className="animate-spin" size={32} />
-          <span className="text-sm font-medium">
-            장소 및 태그 정보를 준비하는 중...
-          </span>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-8 pb-6">
-          {/* 1. 장소 선택 (placeId) */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700 block">
-              방문 장소 선택 *
-            </label>
+      <form onSubmit={handleSubmit} className="space-y-8 pb-6">
+        {/* 1. 장소 선택 (placeId) */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-gray-700 block">
+            방문 장소 선택 *
+          </label>
 
-            {/* 장소 검색 필터 입력란 */}
-            <div className="relative flex items-center">
-              <Search size={16} className="absolute left-3 text-gray-400" />
-              <input
-                type="text"
-                value={placeSearchTerm}
-                onChange={(e) => setPlaceSearchTerm(e.target.value)}
-                placeholder="장소명 또는 주소 검색..."
-                className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
-              />
-              {placeSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setPlaceSearchTerm("")}
-                  className="absolute right-3 text-gray-400 hover:text-gray-600"
+          {!hasFetchedPlaces && !isLoadingPlaces && (
+            <div
+              onClick={handleFetchPlaces}
+              className="w-full px-3.5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-400 flex items-center justify-between cursor-pointer hover:border-gray-400 hover:bg-gray-100/60 transition-all select-none"
+            >
+              <div className="flex items-center space-x-2">
+                <MapPin size={16} className="text-gray-400" />
+                <span>터치하여 방문 장소 선택하기...</span>
+              </div>
+              <Search size={16} className="text-gray-400" />
+            </div>
+          )}
+
+          {isLoadingPlaces && (
+            <div className="space-y-2">
+              <div className="w-full h-11 bg-gray-100 rounded-xl animate-pulse flex items-center justify-between px-3.5">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse" />
+                  <div className="w-40 h-4 bg-gray-200 rounded animate-pulse" />
+                </div>
+                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="w-full h-11 bg-gray-100/60 rounded-xl animate-pulse flex items-center justify-between px-3.5">
+                <div className="w-56 h-4 bg-gray-200/80 rounded animate-pulse" />
+              </div>
+            </div>
+          )}
+
+          {hasFetchedPlaces && (
+            <div className="space-y-3 animate-fade-in">
+              {/* 장소 검색 필터 입력란 */}
+              <div className="relative flex items-center">
+                <Search size={16} className="absolute left-3 text-gray-400" />
+                <input
+                  type="text"
+                  value={placeSearchTerm}
+                  onChange={(e) => setPlaceSearchTerm(e.target.value)}
+                  placeholder="장소명 또는 주소 검색..."
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
+                />
+                {placeSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setPlaceSearchTerm("")}
+                    className="absolute right-3 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {places.length === 0 ? (
+                <p className="text-sm text-red-500 font-medium">
+                  등록된 장소가 없습니다. 먼저 장소를 추가해주세요.
+                </p>
+              ) : (
+                <select
+                  value={selectedPlaceId}
+                  onChange={(e) => setSelectedPlaceId(e.target.value)}
+                  className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-900 focus:border-gray-400 outline-none transition-colors"
                 >
-                  <X size={14} />
-                </button>
+                  {places
+                    .filter(
+                      (p) =>
+                        p.name?.toLowerCase().includes(placeSearchTerm.toLowerCase()) ||
+                        p.address?.toLowerCase().includes(placeSearchTerm.toLowerCase())
+                    )
+                    .map((place) => {
+                      const id = place.placeId || place.id;
+                      return (
+                        <option key={id} value={id}>
+                          {place.name} ({place.address || "주소 미입력"})
+                        </option>
+                      );
+                    })}
+                </select>
               )}
             </div>
+          )}
+        </div>
 
-            {places.length === 0 ? (
-              <p className="text-sm text-red-500 font-medium">
-                등록된 장소가 없습니다. 먼저 장소를 추가해주세요.
-              </p>
-            ) : (
-              <select
-                value={selectedPlaceId}
-                onChange={(e) => setSelectedPlaceId(e.target.value)}
-                className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-900 focus:border-gray-400 outline-none transition-colors"
-              >
-                {places
-                  .filter(
-                    (p) =>
-                      p.name?.toLowerCase().includes(placeSearchTerm.toLowerCase()) ||
-                      p.address?.toLowerCase().includes(placeSearchTerm.toLowerCase())
-                  )
-                  .map((place) => {
-                    const id = place.placeId || place.id;
-                    return (
-                      <option key={id} value={id}>
-                        {place.name} ({place.address || "주소 미입력"})
-                      </option>
-                    );
-                  })}
-              </select>
-            )}
-          </div>
 
           {/* 2. 제목 & 방문 일자 & 동행인 (companion) */}
           <div className="space-y-6">
@@ -419,42 +464,71 @@ export default function ReviewPage() {
             )}
           </div>
 
-          {/* 6. 이미지 URL 첨부 (imageUrls) */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700 block">
-              사진 링크 첨부
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrlInput}
-                onChange={(e) => setImageUrlInput(e.target.value)}
-                onKeyDown={handleAddImageUrl}
-                placeholder="https://... 이미지 URL 입력"
-                className="flex-1 px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
-              />
-              <button
-                type="button"
-                onClick={handleAddImageUrl}
-                className="px-4 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-              >
-                <Plus size={18} />
-              </button>
+          {/* 6. 사진 첨부 (파일 업로드 전용) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 block">
+                사진 첨부
+              </label>
+              {imageUrls.length > 0 && (
+                <span className="text-xs text-gray-400 font-medium">
+                  {imageUrls.length}장 첨부됨
+                </span>
+              )}
             </div>
+
+            {/* 숨겨진 파일 선택 input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
+
+            {/* 사진 업로드 버튼 */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingImage}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3.5 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 hover:border-gray-400 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isUploadingImage ? (
+                <>
+                  <Loader2 size={18} className="animate-spin text-gray-600" />
+                  <span>사진 업로드 중...</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={18} className="text-gray-500" />
+                  <span>내 기기에서 사진 선택하여 업로드</span>
+                </>
+              )}
+            </button>
+
+            {/* 업로드된 이미지 미리보기 목록 */}
             {imageUrls.length > 0 && (
-              <div className="space-y-2 pt-2">
+              <div className="grid grid-cols-3 gap-2 pt-2">
                 {imageUrls.map((url, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm"
+                    className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-100"
                   >
-                    <span className="truncate text-gray-600 max-w-[200px]">{url}</span>
+                    <img
+                      src={url}
+                      alt={`첨부 이미지 ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = "/imgs/alone.png";
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => handleRemoveImageUrl(idx)}
-                      className="text-gray-400 hover:text-gray-600 p-1"
+                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white hover:bg-black transition-colors cursor-pointer"
+                      title="사진 삭제"
                     >
-                      <X size={16} />
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -480,7 +554,7 @@ export default function ReviewPage() {
             </button>
           </div>
         </form>
-      )}
     </div>
   );
 }
+

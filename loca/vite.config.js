@@ -15,9 +15,16 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://sixth-loca-backend-5-trku.onrender.com",
+        target: "https://sixth-loca-backend-9.onrender.com",
         changeOrigin: true,
         secure: false,
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            // Spring Boot CORS filter checks Origin and Referer headers
+            proxyReq.setHeader("Origin", "https://loca-hongik.vercel.app");
+            proxyReq.setHeader("Referer", "https://loca-hongik.vercel.app/");
+          });
+        },
       },
     },
   },

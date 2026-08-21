@@ -42,54 +42,75 @@ export default function ForYouPage() {
     }
 
     try {
-      const statusRes = await fetchForYouStatus();
-      const isUnlocked = Boolean(statusRes?.unlocked) || statusRes?.remainingReviewCount === 0;
+      // 추천 상태와 추천 장소 목록을 병렬로 동시에 호출하여 지연 최소화
+      const [statusResResult, recResResult] = await Promise.allSettled([
+        fetchForYouStatus(),
+        fetchForYouRecommendations(),
+      ]);
 
-      const parsedStatus = {
-        unlocked: isUnlocked,
-        reviewCount: statusRes?.reviewCount ?? 0,
-        requiredReviewCount: statusRes?.requiredReviewCount ?? 3,
-        remainingReviewCount: statusRes?.remainingReviewCount ?? 3,
+      let isUnlocked = false;
+      let parsedStatus = {
+        unlocked: false,
+        reviewCount: 0,
+        requiredReviewCount: 3,
+        remainingReviewCount: 3,
       };
+
+      if (statusResResult.status === "fulfilled" && statusResResult.value) {
+        const s = statusResResult.value;
+        isUnlocked = Boolean(s?.unlocked) || s?.remainingReviewCount === 0;
+        parsedStatus = {
+          unlocked: isUnlocked,
+          reviewCount: s?.reviewCount ?? 0,
+          requiredReviewCount: s?.requiredReviewCount ?? 3,
+          remainingReviewCount: s?.remainingReviewCount ?? 3,
+        };
+      }
 
       setStatusData(parsedStatus);
 
-      if (isUnlocked) {
+      if (isUnlocked || (recResResult.status === "fulfilled" && recResResult.value)) {
         let rawPlaces = [];
-        try {
-          const recData = await fetchForYouRecommendations();
+        if (recResResult.status === "fulfilled" && recResResult.value) {
+          const recData = recResResult.value;
           if (Array.isArray(recData)) {
             rawPlaces = recData.slice(0, 5);
           } else if (recData?.places && Array.isArray(recData.places)) {
             rawPlaces = recData.places.slice(0, 5);
           }
-        } catch (recErr) {
-          console.warn("ForYou Recommendations Fetch Error:", recErr);
         }
 
-        const placesWithDetail = await Promise.all(
-          rawPlaces.map(async (p) => {
-            const pId = p.placeId || p.id;
-            if (!pId) return p;
-            try {
-              const detail = await fetchPublicPlaceDetail(pId);
-              return {
-                ...p,
-                tags: detail?.tags || p.tags || [],
-              };
-            } catch (e) {
-              console.warn(`Place detail load failed for placeId ${pId}:`, e);
-              return p;
-            }
-          })
-        );
+        // 1. 장소 기본 정보를 즉시 화면에 렌더링하고 로딩 해제
+        setRecommendations(rawPlaces);
+        setIsLoading(false);
 
-        setRecommendations(placesWithDetail);
+        // 2. 태그/상세 데이터는 백그라운드에서 비동기로 불러와 순차적으로 보강
+        rawPlaces.forEach(async (p, idx) => {
+          if (Array.isArray(p.tags) && p.tags.length > 0) return;
+          const pId = p.placeId || p.id;
+          if (!pId) return;
+
+          try {
+            const detail = await fetchPublicPlaceDetail(pId);
+            if (detail?.tags) {
+              setRecommendations((prev) =>
+                prev.map((item, i) =>
+                  i === idx || (item.placeId || item.id) === pId
+                    ? { ...item, tags: detail.tags }
+                    : item
+                )
+              );
+            }
+          } catch (e) {
+            console.warn(`Place detail load failed for placeId ${pId}:`, e);
+          }
+        });
+      } else {
+        setIsLoading(false);
       }
     } catch (err) {
       console.error("ForYou Load Error:", err);
       setErrorMsg(err.message || "추천 정보를 불러오는데 실패했습니다.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -130,9 +151,34 @@ export default function ForYouPage() {
       )}
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400 my-auto">
-          <Loader2 className="animate-spin text-gray-400" size={24} />
-          <span className="text-sm text-gray-500">로카프렌즈가 맞춤 장소를 찾는 중...</span>
+        /* 장소 로딩 스켈레톤 상태 */
+        <div className="space-y-4 animate-fade-in">
+          <div className="relative pt-2">
+            <div className="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
+              <img
+                src={forYouIllustration}
+                alt="LOCA Friends recommendations"
+                className="w-full h-full object-contain filter drop-shadow-sm"
+              />
+            </div>
+            <div className="relative -mt-6 z-10 space-y-3">
+              <div className="w-full p-5 bg-white rounded-2xl shadow-md border border-gray-100/80 animate-pulse space-y-3.5">
+                <div className="w-24 h-5 bg-amber-100/80 rounded-md" />
+                <div className="space-y-2">
+                  <div className="w-44 h-5.5 bg-gray-200 rounded-md" />
+                  <div className="w-60 h-4 bg-gray-100 rounded-md" />
+                </div>
+                <div className="pt-3.5 border-t border-gray-100 space-y-2">
+                  <div className="w-20 h-3 bg-gray-100 rounded" />
+                  <div className="flex gap-1.5">
+                    <div className="h-6 w-16 bg-gray-100 rounded-lg" />
+                    <div className="h-6 w-20 bg-gray-100 rounded-lg" />
+                    <div className="h-6 w-14 bg-gray-100 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : !isUnlocked ? (
         /* LOCKED STATE */
@@ -243,14 +289,21 @@ export default function ForYouPage() {
 
                             <div className="space-y-2 pt-3.5 mt-3.5 border-t border-gray-100">
                               <div className="text-xs text-gray-400 font-medium">분위기 & 키워드</div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Array.isArray(placeTags) && placeTags.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+                                {place.tags === undefined && !place.keywords ? (
+                                  /* 태그 비동기 로딩 중 스켈레톤 */
+                                  <div className="flex flex-wrap gap-1.5 animate-pulse w-full">
+                                    <div className="h-6 w-16 bg-gray-100 rounded-lg" />
+                                    <div className="h-6 w-20 bg-gray-100 rounded-lg" />
+                                    <div className="h-6 w-14 bg-gray-100 rounded-lg" />
+                                  </div>
+                                ) : Array.isArray(placeTags) && placeTags.length > 0 ? (
                                   placeTags.map((t, tIdx) => {
                                     const tagName = typeof t === "string" ? t : t.name || t.tagName;
                                     return (
                                       <span
                                         key={tIdx}
-                                        className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium"
+                                        className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium animate-fade-in"
                                       >
                                         #{tagName}
                                       </span>
@@ -264,6 +317,7 @@ export default function ForYouPage() {
                               </div>
                             </div>
                           </div>
+
                         );
                       })}
                     </div>
