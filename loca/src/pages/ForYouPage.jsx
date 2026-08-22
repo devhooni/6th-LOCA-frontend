@@ -42,42 +42,31 @@ export default function ForYouPage() {
     }
 
     try {
-      // 추천 상태와 추천 장소 목록을 병렬로 동시에 호출하여 지연 최소화
-      const [statusResResult, recResResult] = await Promise.allSettled([
-        fetchForYouStatus(),
-        fetchForYouRecommendations(),
-      ]);
+      // 1. 먼저 For-You 맞춤 추천 잠금/해제 상태를 조회
+      const statusRes = await fetchForYouStatus();
+      const isUnlocked = Boolean(statusRes?.unlocked) || statusRes?.remainingReviewCount === 0;
 
-      let isUnlocked = false;
-      let parsedStatus = {
-        unlocked: false,
-        reviewCount: 0,
-        requiredReviewCount: 3,
-        remainingReviewCount: 3,
+      const parsedStatus = {
+        unlocked: isUnlocked,
+        reviewCount: statusRes?.reviewCount ?? 0,
+        requiredReviewCount: statusRes?.requiredReviewCount ?? 3,
+        remainingReviewCount: statusRes?.remainingReviewCount ?? 3,
       };
-
-      if (statusResResult.status === "fulfilled" && statusResResult.value) {
-        const s = statusResResult.value;
-        isUnlocked = Boolean(s?.unlocked) || s?.remainingReviewCount === 0;
-        parsedStatus = {
-          unlocked: isUnlocked,
-          reviewCount: s?.reviewCount ?? 0,
-          requiredReviewCount: s?.requiredReviewCount ?? 3,
-          remainingReviewCount: s?.remainingReviewCount ?? 3,
-        };
-      }
 
       setStatusData(parsedStatus);
 
-      if (isUnlocked || (recResResult.status === "fulfilled" && recResResult.value)) {
+      // 2. 잠금 해제(리뷰 3개 이상 작성)된 경우에만 추천 장소 API 호출!
+      if (isUnlocked) {
         let rawPlaces = [];
-        if (recResResult.status === "fulfilled" && recResResult.value) {
-          const recData = recResResult.value;
+        try {
+          const recData = await fetchForYouRecommendations();
           if (Array.isArray(recData)) {
             rawPlaces = recData.slice(0, 5);
           } else if (recData?.places && Array.isArray(recData.places)) {
             rawPlaces = recData.places.slice(0, 5);
           }
+        } catch (recErr) {
+          console.warn("ForYou Recommendations Fetch Error:", recErr);
         }
 
         // 1. 장소 기본 정보를 즉시 화면에 렌더링하고 로딩 해제
@@ -106,6 +95,7 @@ export default function ForYouPage() {
           }
         });
       } else {
+        // 잠겨있는 상태면 추천 API를 부르지 않고 바로 잠금 화면 렌더링
         setIsLoading(false);
       }
     } catch (err) {
@@ -114,6 +104,7 @@ export default function ForYouPage() {
       setIsLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadForYouData();

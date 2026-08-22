@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -23,6 +23,59 @@ import {
   uploadReviewImage,
 } from "../services/placeService";
 
+// 동행인 정적 옵션 목록 (컴포넌트 외부에 선언하여 매 렌더링마다 재생성 방지)
+const COMPANION_OPTIONS = [
+  { value: "ALONE", label: "혼자", img: "/imgs/alone.png" },
+  { value: "FRIEND", label: "친구와", img: "/imgs/friends.png" },
+  { value: "LOVER", label: "연인과", img: "/imgs/couple.png" },
+  { value: "FAMILY", label: "가족과", img: "/imgs/family.png" },
+  { value: "ETC", label: "기타/동료", img: "/imgs/etc.png" },
+];
+
+// 메모이제이션된 장소 카드 (선택 변경 시 변경된 2개 카드만 리렌더링되어 0ms 즉각 반응)
+const PlaceCard = memo(function PlaceCard({ place, isSelected, onSelect }) {
+  const id = place.placeId || place.id;
+
+  return (
+    <div
+      onClick={() => onSelect(id)}
+      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between text-left select-none ${
+        isSelected
+          ? "bg-white border-[#111] shadow-xs ring-1 ring-[#111]"
+          : "bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50/80"
+      }`}
+    >
+      <div className="flex items-start space-x-2.5 min-w-0 flex-1">
+        <div
+          className={`w-7 h-7 rounded-lg flex items-center justify-center flex-none mt-0.5 ${
+            isSelected ? "bg-[#111] text-white" : "bg-gray-100 text-gray-400"
+          }`}
+        >
+          <MapPin size={14} />
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span
+            className={`text-sm font-bold truncate ${
+              isSelected ? "text-[#111]" : "text-gray-800"
+            }`}
+          >
+            {place.name}
+          </span>
+          <span className="text-xs text-gray-400 truncate mt-0.5">
+            {place.address || "주소 미입력"}
+          </span>
+        </div>
+      </div>
+
+      {isSelected && (
+        <div className="w-5 h-5 rounded-full bg-[#111] text-white flex items-center justify-center flex-none ml-2">
+          <Check size={12} strokeWidth={2.5} />
+        </div>
+      )}
+    </div>
+  );
+});
+
 export default function ReviewPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -30,11 +83,13 @@ export default function ReviewPage() {
   // 장소 및 태그 목록 state
   const [places, setPlaces] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
-  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
-  const [hasFetchedPlaces, setHasFetchedPlaces] = useState(false);
+  const [isLoadingPlaces, setIsLoadingPlaces] = useState(true);
 
-  // 장소 검색어 state
+  // 장소 검색어 state (100% 클라이언트 메모리 필터링, API 통신 0회)
   const [placeSearchTerm, setPlaceSearchTerm] = useState("");
+
+  // 한 번에 렌더링할 장소 개수 제한 (50개씩 가상 페이징)
+  const [displayLimit, setDisplayLimit] = useState(50);
 
   // 리뷰 작성 폼 state
   const [selectedPlaceId, setSelectedPlaceId] = useState("");
@@ -56,42 +111,72 @@ export default function ReviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // 마운트 시 태그 목록만 가볍게 사전 로드 (장소 목록은 장소 박스 클릭 시 요청)
+  // 검색어가 바뀌면 표시 개수를 다시 50개로 리셋
   useEffect(() => {
+    setDisplayLimit(50);
+  }, [placeSearchTerm]);
+
+  // 페이지 마운트 시 장소 및 태그 목록을 단 1회만 호출 (캐시 활용)
+  useEffect(() => {
+    setIsLoadingPlaces(true);
+
     fetchTags()
       .then((tagsRes) => {
         if (Array.isArray(tagsRes)) setAvailableTags(tagsRes);
       })
       .catch((e) => console.warn("Tags load warn:", e));
+
+    fetchPublicPlaces(0, 100)
+      .then((publicRes) => {
+        const list = Array.isArray(publicRes) ? publicRes : (publicRes?.content || []);
+        setPlaces(list);
+        if (list.length > 0) {
+          setSelectedPlaceId((prev) => prev || list[0].placeId || list[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error("Public places load error:", err);
+        setErrorMsg("장소 목록을 불러오는데 실패했습니다.");
+      })
+      .finally(() => {
+        setIsLoadingPlaces(false);
+      });
   }, []);
 
-  // 장소 박스 클릭 시 공용 장소 목록 API 요청 (on-demand loading)
-  const handleFetchPlaces = async () => {
-    if (hasFetchedPlaces || isLoadingPlaces) return;
-    setIsLoadingPlaces(true);
-    setErrorMsg(null);
+  // 장소 선택 핸들러 (useCallback으로 메모이제이션)
+  const handleSelectPlace = useCallback((id) => {
+    setSelectedPlaceId(id);
+  }, []);
 
-    try {
-      const publicRes = await fetchPublicPlaces(0, 100);
-      let publicPlacesList = [];
-      if (Array.isArray(publicRes)) {
-        publicPlacesList = publicRes;
-      } else if (publicRes && Array.isArray(publicRes.content)) {
-        publicPlacesList = publicRes.content;
-      }
+  // 검색어에 따른 필터링 결과 메모이제이션 (검색어가 바뀔 때만 재계산)
+  const filteredPlaces = useMemo(() => {
+    if (!placeSearchTerm.trim()) return places;
+    const term = placeSearchTerm.toLowerCase();
+    return places.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(term) ||
+        p.address?.toLowerCase().includes(term)
+    );
+  }, [places, placeSearchTerm]);
 
-      setPlaces(publicPlacesList);
-      if (publicPlacesList.length > 0) {
-        setSelectedPlaceId(publicPlacesList[0].placeId || publicPlacesList[0].id);
+  // 화면에 실제 렌더링할 50개 단위 장소 슬라이스
+  const visiblePlaces = useMemo(() => {
+    return filteredPlaces.slice(0, displayLimit);
+  }, [filteredPlaces, displayLimit]);
+
+  // 스크롤 시 50개씩 추가 로드
+  const handlePlaceListScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 60) {
+      if (displayLimit < filteredPlaces.length) {
+        setDisplayLimit((prev) => Math.min(prev + 50, filteredPlaces.length));
       }
-      setHasFetchedPlaces(true);
-    } catch (err) {
-      console.error("Public places load error:", err);
-      setErrorMsg("장소 목록을 불러오는데 실패했습니다.");
-    } finally {
-      setIsLoadingPlaces(false);
     }
   };
+
+
+
+
 
 
   // 키워드 태그 추가
@@ -197,14 +282,6 @@ export default function ReviewPage() {
     }
   };
 
-  const companionOptions = [
-    { value: "ALONE", label: "혼자", img: "/imgs/alone.png" },
-    { value: "FRIEND", label: "친구와", img: "/imgs/friends.png" },
-    { value: "LOVER", label: "연인과", img: "/imgs/couple.png" },
-    { value: "FAMILY", label: "가족과", img: "/imgs/family.png" },
-    { value: "ETC", label: "기타/동료", img: "/imgs/etc.png" },
-  ];
-
   return (
     <div className="flex flex-col h-full w-full bg-white select-none text-left space-y-5 overflow-x-hidden">
       {/* Page Title */}
@@ -230,39 +307,36 @@ export default function ReviewPage() {
             방문 장소 선택 *
           </label>
 
-          {!hasFetchedPlaces && !isLoadingPlaces && (
-            <div
-              onClick={handleFetchPlaces}
-              className="w-full px-3.5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-400 flex items-center justify-between cursor-pointer hover:border-gray-400 hover:bg-gray-100/60 transition-all select-none"
-            >
-              <div className="flex items-center space-x-2">
-                <MapPin size={16} className="text-gray-400" />
-                <span>터치하여 방문 장소 선택하기...</span>
-              </div>
-              <Search size={16} className="text-gray-400" />
-            </div>
-          )}
-
+          {/* 로딩 중: 펄스 애니메이션 스켈레톤 박스 컴포넌트 */}
           {isLoadingPlaces && (
-            <div className="space-y-2">
+            <div className="space-y-2.5 animate-fade-in">
               <div className="w-full h-11 bg-gray-100 rounded-xl animate-pulse flex items-center justify-between px-3.5">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse" />
-                  <div className="w-40 h-4 bg-gray-200 rounded animate-pulse" />
-                </div>
-                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
+                <div className="w-40 h-4 bg-gray-200 rounded animate-pulse" />
+                <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse" />
               </div>
-              <div className="w-full h-11 bg-gray-100/60 rounded-xl animate-pulse flex items-center justify-between px-3.5">
-                <div className="w-56 h-4 bg-gray-200/80 rounded animate-pulse" />
+              <div className="space-y-2 border border-gray-100 rounded-2xl p-2 bg-gray-50/60 max-h-56 overflow-hidden">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="p-3 bg-white rounded-xl border border-gray-100 animate-pulse flex items-center justify-between"
+                  >
+                    <div className="space-y-1.5 flex-1">
+                      <div className="w-32 h-4 bg-gray-200 rounded" />
+                      <div className="w-48 h-3 bg-gray-100 rounded" />
+                    </div>
+                    <div className="w-4 h-4 bg-gray-100 rounded-full" />
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {hasFetchedPlaces && (
-            <div className="space-y-3 animate-fade-in">
-              {/* 장소 검색 필터 입력란 */}
+          {/* 로드 완료: 즉시 사용 가능한 커스텀 장소 검색 및 선택 박스 컴포넌트 */}
+          {!isLoadingPlaces && (
+            <div className="space-y-2.5 animate-fade-in">
+              {/* 장소 검색 필터 입력란 (순수 로컬 메모리 필터링, API 요청 0회) */}
               <div className="relative flex items-center">
-                <Search size={16} className="absolute left-3 text-gray-400" />
+                <Search size={16} className="absolute left-3.5 text-gray-400" />
                 <input
                   type="text"
                   value={placeSearchTerm}
@@ -274,111 +348,128 @@ export default function ReviewPage() {
                   <button
                     type="button"
                     onClick={() => setPlaceSearchTerm("")}
-                    className="absolute right-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3.5 text-gray-400 hover:text-gray-600"
                   >
                     <X size={14} />
                   </button>
                 )}
               </div>
 
+              {/* 커스텀 장소 박스 스크롤 목록 (50개씩 가상 페이징 + 메모이제이션으로 0ms 즉각 반응) */}
               {places.length === 0 ? (
-                <p className="text-sm text-red-500 font-medium">
-                  등록된 장소가 없습니다. 먼저 장소를 추가해주세요.
-                </p>
+                <div className="p-4 text-center rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-400">
+                  등록된 공용 장소가 없습니다.
+                </div>
+              ) : filteredPlaces.length === 0 ? (
+                <div className="p-4 text-center rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-400">
+                  검색된 장소가 없습니다.
+                </div>
               ) : (
-                <select
-                  value={selectedPlaceId}
-                  onChange={(e) => setSelectedPlaceId(e.target.value)}
-                  className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-900 focus:border-gray-400 outline-none transition-colors"
+                <div
+                  onScroll={handlePlaceListScroll}
+                  className="space-y-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar border border-gray-100 rounded-2xl p-1.5 bg-gray-50/50"
                 >
-                  {places
-                    .filter(
-                      (p) =>
-                        p.name?.toLowerCase().includes(placeSearchTerm.toLowerCase()) ||
-                        p.address?.toLowerCase().includes(placeSearchTerm.toLowerCase())
-                    )
-                    .map((place) => {
-                      const id = place.placeId || place.id;
-                      return (
-                        <option key={id} value={id}>
-                          {place.name} ({place.address || "주소 미입력"})
-                        </option>
-                      );
-                    })}
-                </select>
+                  {visiblePlaces.map((place) => {
+                    const id = place.placeId || place.id;
+                    const isSelected = String(selectedPlaceId) === String(id);
+                    return (
+                      <PlaceCard
+                        key={id}
+                        place={place}
+                        isSelected={isSelected}
+                        onSelect={handleSelectPlace}
+                      />
+                    );
+                  })}
+
+                  {filteredPlaces.length > visiblePlaces.length && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDisplayLimit((prev) =>
+                          Math.min(prev + 50, filteredPlaces.length)
+                        )
+                      }
+                      className="w-full py-2.5 mt-1 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 active:scale-99 transition-all cursor-pointer shadow-2xs"
+                    >
+                      + 장소 더보기 ({visiblePlaces.length} / {filteredPlaces.length})
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
 
 
-          {/* 2. 제목 & 방문 일자 & 동행인 (companion) */}
-          <div className="space-y-6">
-            {/* 제목 (title) */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 block">리뷰 제목 *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="한 줄로 요약하는 한눈 리뷰 제목"
-                className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
-              />
-            </div>
+        {/* 2. 제목 & 방문 일자 & 동행인 (companion) */}
+        <div className="space-y-6">
+          {/* 제목 (title) */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700 block">리뷰 제목 *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="한 줄로 요약하는 한눈 리뷰 제목"
+              className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
+            />
+          </div>
 
-            {/* 방문 날짜 (visitedAt) */}
-            <div className="space-y-1.5">
+          {/* 방문 날짜 (visitedAt) */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700 block">
+              방문 일자
+            </label>
+            <input
+              type="date"
+              value={visitedAt}
+              onChange={(e) => setVisitedAt(e.target.value)}
+              className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-900 focus:border-gray-400 outline-none transition-colors"
+            />
+          </div>
+
+          {/* 동행인 선택 (companion: ALONE, FRIEND, LOVER, FAMILY, ETC) - 크게 시원하게 보이는 가로 스크롤 카드 */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700 block">
-                방문 일자
+                누구와 함께 방문하셨나요?
               </label>
-              <input
-                type="date"
-                value={visitedAt}
-                onChange={(e) => setVisitedAt(e.target.value)}
-                className="w-full px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-900 focus:border-gray-400 outline-none transition-colors"
-              />
+              <span className="text-[11px] text-gray-400">좌우로 넘겨 선택 ➔</span>
             </div>
 
-            {/* 동행인 선택 (companion: ALONE, FRIEND, LOVER, FAMILY, ETC) - 크게 시원하게 보이는 가로 스크롤 카드 */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700 block">
-                  누구와 함께 방문하셨나요?
-                </label>
-                <span className="text-[11px] text-gray-400">좌우로 넘겨 선택 ➔</span>
-              </div>
-
-              <div className="flex space-x-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
-                {companionOptions.map((opt) => {
-                  const isSelected = companion === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setCompanion(opt.value)}
-                      className={`flex-none flex flex-col items-center justify-between w-[88px] h-[110px] p-2.5 rounded-2xl border transition-all cursor-pointer select-none ${
-                        isSelected
-                          ? "bg-[#111] text-white border-[#111] shadow-md scale-105"
-                          : "bg-gray-50/80 text-gray-600 border-gray-200/80 hover:bg-white hover:border-gray-300 shadow-2xs"
-                      }`}
-                    >
-                      {/* 큼직하고 선명한 캐릭터 일러스트 */}
-                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center">
-                        <img
-                          src={opt.img}
-                          alt={opt.label}
-                          className="w-full h-full object-contain filter drop-shadow-sm transition-transform group-hover:scale-105"
-                        />
-                      </div>
-                      <span className={`text-xs font-bold tracking-tight mt-1 ${isSelected ? "text-white" : "text-gray-800"}`}>
-                        {opt.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="flex space-x-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
+              {COMPANION_OPTIONS.map((opt) => {
+                const isSelected = companion === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCompanion(opt.value)}
+                    className={`flex-none flex flex-col items-center justify-between w-[88px] h-[110px] p-2.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? "bg-[#111] text-white border-[#111] shadow-md scale-105"
+                        : "bg-gray-50/80 text-gray-600 border-gray-200/80 hover:bg-white hover:border-gray-300 shadow-2xs"
+                    }`}
+                  >
+                    {/* 큼직하고 선명한 캐릭터 일러스트 */}
+                    <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center">
+                      <img
+                        src={opt.img}
+                        alt={opt.label}
+                        className="w-full h-full object-contain filter drop-shadow-sm transition-transform group-hover:scale-105"
+                      />
+                    </div>
+                    <span className={`text-xs font-bold tracking-tight mt-1 ${isSelected ? "text-white" : "text-gray-800"}`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        </div>
+
 
           {/* 3. 본문 내용 (content) */}
           <div className="space-y-1.5">

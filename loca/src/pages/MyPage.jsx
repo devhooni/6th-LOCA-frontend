@@ -90,7 +90,7 @@ export default function MyPage() {
   const [placeMap, setPlaceMap] = useState({});
   const [tagMap, setTagMap] = useState({});
 
-  // 전체 태그 목록 불러와 tagMap 완성
+  // 전체 태그 목록 불러와 tagMap 완성 (비동기 독립 실행)
   const loadTags = async () => {
     try {
       const tags = await fetchTags();
@@ -118,36 +118,49 @@ export default function MyPage() {
     setIsLoadingPlaces(true);
     setPlacesError(null);
 
-    try {
-      // 개인 장소와 공용 장소를 병렬로 한 번에 요청 (캐시 경유)
-      const [privRes, pubRes] = await Promise.all([
-        fetchPrivatePlaces().catch((e) => { console.warn("Private places load warn:", e); return []; }),
-        fetchPublicPlaces(0, 100).catch((e) => { console.warn("Public places load warn:", e); return { content: [] }; }),
-      ]);
-
-      let privates = Array.isArray(privRes) ? privRes : (privRes?.content || []);
-      let publics = Array.isArray(pubRes) ? pubRes : (pubRes?.content || []);
-
-      setMyPlaces(privates);
-
-      // 전체 장소 맵 구성 (placeId, id, kakaoPlaceId -> place object)
-      const mapObj = {};
-      [...privates, ...publics].forEach((p) => {
-        const pId = p.placeId ?? p.id;
-        if (pId !== undefined && pId !== null) mapObj[pId] = p;
-        if (p.kakaoPlaceId) mapObj[p.kakaoPlaceId] = p;
+    // 1. 내 개인 장소 먼저 즉시 호출 및 도착하는 대로 화면에 바로 렌더링
+    fetchPrivatePlaces()
+      .then((pRes) => {
+        const privates = Array.isArray(pRes) ? pRes : (pRes?.content || []);
+        setMyPlaces(privates);
+        setPlaceMap((prev) => {
+          const mapObj = { ...prev };
+          privates.forEach((p) => {
+            const pId = p.placeId ?? p.id;
+            if (pId !== undefined && pId !== null) mapObj[pId] = p;
+            if (p.kakaoPlaceId) mapObj[p.kakaoPlaceId] = p;
+          });
+          return mapObj;
+        });
+      })
+      .catch((err) => {
+        console.error("Load Private Places Error:", err);
+        setPlacesError(err.message || "내 장소 목록을 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        setIsLoadingPlaces(false);
       });
-      setPlaceMap(mapObj);
-    } catch (err) {
-      console.error("Load My Places Error:", err);
-      setPlacesError(err.message || "내 장소 목록을 불러오지 못했습니다.");
-    } finally {
-      setIsLoadingPlaces(false);
-    }
+
+    // 2. 리뷰 장소명/사진 매핑을 위한 공용 장소는 별도로 비동기 수집 (개인 장소 렌더링을 차단하지 않음)
+    fetchPublicPlaces(0, 100)
+      .then((pubRes) => {
+        const publics = Array.isArray(pubRes) ? pubRes : (pubRes?.content || []);
+        setPlaceMap((prev) => {
+          const mapObj = { ...prev };
+          publics.forEach((p) => {
+            const pId = p.placeId ?? p.id;
+            if (pId !== undefined && pId !== null && !mapObj[pId]) mapObj[pId] = p;
+            if (p.kakaoPlaceId && !mapObj[p.kakaoPlaceId]) mapObj[p.kakaoPlaceId] = p;
+          });
+          return mapObj;
+        });
+      })
+      .catch((e) => {
+        console.warn("Public places load for placeMap warn:", e);
+      });
   };
 
-
-  // 내 작성 리뷰 목록 불러오기
+  // 내 작성 리뷰 목록 불러오기 (도착하는 대로 독립 렌더링)
   const loadMyReviews = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -165,6 +178,7 @@ export default function MyPage() {
       setIsLoadingReviews(false);
     }
   };
+
 
   // 프로필 아이콘 관련 상태 (1~12)
   const [currentIconId, setCurrentIconId] = useState(1);
@@ -442,8 +456,25 @@ export default function MyPage() {
           )}
 
           {isLoadingPlaces ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
-              <Loader2 className="animate-spin" size={20} />
+            <div className="space-y-3 pb-6 animate-fade-in">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 animate-pulse"
+                >
+                  <div className="flex flex-col space-y-2 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-28 h-4 bg-gray-200 rounded" />
+                      <div className="w-12 h-3.5 bg-gray-100 rounded" />
+                    </div>
+                    <div className="w-48 h-3 bg-gray-100 rounded" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gray-100 rounded" />
+                    <div className="w-6 h-6 bg-gray-100 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : myPlaces.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
@@ -528,10 +559,32 @@ export default function MyPage() {
           )}
 
           {isLoadingReviews ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
-              <Loader2 className="animate-spin" size={20} />
+            <div className="space-y-3 pb-6 animate-fade-in">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="p-4 bg-white rounded-2xl border border-gray-100 animate-pulse space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-24 h-3.5 bg-gray-200 rounded" />
+                        <div className="w-12 h-3.5 bg-gray-100 rounded" />
+                      </div>
+                      <div className="w-36 h-4 bg-gray-200 rounded" />
+                      <div className="w-full h-8 bg-gray-100 rounded" />
+                    </div>
+                    <div className="w-20 h-20 bg-gray-100 rounded-md flex-none" />
+                  </div>
+                  <div className="flex gap-1.5 pt-1">
+                    <div className="w-14 h-5 bg-gray-100 rounded-lg" />
+                    <div className="w-16 h-5 bg-gray-100 rounded-lg" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : myReviews.length === 0 ? (
+
             <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
               <p className="text-sm">작성한 리뷰가 없습니다.</p>
             </div>

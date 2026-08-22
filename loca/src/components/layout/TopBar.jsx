@@ -243,22 +243,29 @@ export function TopBar({ className }) {
 
         {/* 상단바 우측 액션: 공지사항 버튼 & 알림 벨 버튼 */}
         <div className="flex items-center space-x-1">
-          {/* 공지사항 아이콘 버튼 */}
+          {/* 공지사항 아이콘 버튼 + animate-ping 점 */}
           <button
             onClick={handleOpenNotice}
-            className="p-1.5 text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+            className="relative p-1.5 text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
             aria-label="공지사항">
             <Megaphone size={18} strokeWidth={1.8} />
+            <span className="absolute top-0.5 right-0.5 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+            </span>
           </button>
 
-          {/* 알림 벨 버튼 + 빨간 작은 점 */}
+          {/* 알림 벨 버튼 + animate-ping 점 (알림 1개 이상일 때) */}
           <button
             onClick={handleOpenNotification}
             className="relative p-1.5 text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
             aria-label="알림">
             <Bell size={18} strokeWidth={1.8} />
-            {hasUnread && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse" />
+            {(hasUnread || notifications.length > 0) && (
+              <span className="absolute top-0.5 right-0.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+              </span>
             )}
           </button>
         </div>
@@ -281,33 +288,39 @@ export function TopBar({ className }) {
             {/* Header: [공지사항] / [알림] 세그먼트 탭 전환기 */}
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 flex-none">
               <div className="flex items-center space-x-1 p-0.5 bg-gray-100 rounded-xl">
-                {/* 1. 공지사항 탭 (왼쪽) */}
+                {/* 1. 공지사항 탭 (왼쪽) + animate-ping */}
                 <button
                   onClick={() => {
                     setActiveTab("notice");
                     setSelectedNotice(null);
                   }}
                   className={cn(
-                    "flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    "flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer relative",
                     activeTab === "notice"
                       ? "bg-white text-[#111] shadow-2xs"
                       : "text-gray-400 hover:text-gray-600",
                   )}>
                   <Megaphone size={12} />
                   <span>공지사항</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 text-gray-700">
-                    {NOTICES.length}
+                  <span className="relative flex items-center">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 text-gray-700">
+                      {NOTICES.length}
+                    </span>
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+                    </span>
                   </span>
                 </button>
 
-                {/* 2. 알림 탭 (오른쪽) */}
+                {/* 2. 알림 탭 (오른쪽) + animate-ping */}
                 <button
                   onClick={() => {
                     setActiveTab("notification");
                     setSelectedNotice(null);
                   }}
                   className={cn(
-                    "flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    "flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer relative",
                     activeTab === "notification"
                       ? "bg-white text-[#111] shadow-2xs"
                       : "text-gray-400 hover:text-gray-600",
@@ -315,12 +328,20 @@ export function TopBar({ className }) {
                   <Mail size={12} />
                   <span>알림</span>
                   {notifications.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
-                      {notifications.length}
+                    <span className="relative flex items-center">
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
+                        {notifications.length}
+                      </span>
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+                      </span>
                     </span>
                   )}
                 </button>
               </div>
+
+
 
               {/* 우측 닫기 & 알림 모두 지우기 */}
               <div className="flex items-center space-x-2">
@@ -478,6 +499,12 @@ export function TopBar({ className }) {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1.5">
                           {notice.isPinned && (
+                            <span className="relative flex h-2 w-2 mr-0.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                            </span>
+                          )}
+                          {notice.isPinned && (
                             <Pin
                               size={11}
                               className="text-amber-600 flex-none"
@@ -493,6 +520,7 @@ export function TopBar({ className }) {
                             {notice.badge}
                           </span>
                         </div>
+
                         <span className="text-[10px] text-gray-400">
                           {notice.date}
                         </span>

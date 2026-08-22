@@ -19,14 +19,28 @@ const _cache = {};
  */
 function withCache(key, ttlMs, fetcher) {
   const now = Date.now();
-  if (_cache[key] && (now - _cache[key].ts) < ttlMs) {
+  if (_cache[key] && _cache[key].data !== undefined && (now - _cache[key].ts) < ttlMs) {
     return Promise.resolve(_cache[key].data);
   }
-  return fetcher().then((data) => {
-    _cache[key] = { data, ts: now };
-    return data;
-  });
+  // 동일한 키로 이미 진행 중인 비동기 요청이 있다면 중복 호출 없이 해당 Promise 반환
+  if (_cache[key] && _cache[key].promise) {
+    return _cache[key].promise;
+  }
+
+  const promise = fetcher()
+    .then((data) => {
+      _cache[key] = { data, ts: Date.now() };
+      return data;
+    })
+    .catch((err) => {
+      delete _cache[key];
+      throw err;
+    });
+
+  _cache[key] = { promise };
+  return promise;
 }
+
 
 /**
  * 특정 캐시 키를 즉시 무효화합니다.
@@ -53,18 +67,20 @@ function getApiUrl(path) {
 
 
 
-// 백엔드 연결 실패 또는 인증 만료 시 안전하게 온보딩으로 이동시키는 헬퍼 함수
-function handleAuthOrNetworkError(errOrStatus) {
+// 인증 만료(401 Unauthorized) 시 안전하게 온보딩으로 이동시키는 헬퍼 함수
+function handleAuthOrNetworkError(status) {
   if (typeof window !== "undefined") {
-    // 로그인 토큰 정리
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("isAdmin");
+    // 401 Unauthorized (토큰이 유효하지 않거나 만료됨) 일 때만 토큰 정리 및 리다이렉트
+    if (status === 401) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("isAdmin");
 
-    // 현재 온보딩/로그인/회원가입 페이지가 아니라면 즉시 온보딩으로 리다이렉트
-    const pathname = window.location.pathname;
-    if (!["/onboarding", "/login", "/signup"].includes(pathname)) {
-      window.location.replace("/onboarding");
+      // 현재 온보딩/로그인/회원가입 페이지가 아니라면 온보딩으로 리다이렉트
+      const pathname = window.location.pathname;
+      if (!["/onboarding", "/login", "/signup"].includes(pathname)) {
+        window.location.replace("/onboarding");
+      }
     }
   }
 }
@@ -90,24 +106,23 @@ async function extractErrorMessage(response, defaultMsg) {
   }
 }
 
-// 공통 fetch 래퍼 함수 (네트워크 연결 실패, 401 Unauthorized, 403 Forbidden 시 온보딩으로 강제 리다이렉트)
+// 공통 fetch 래퍼 함수 (401 Unauthorized 인증 만료 시에만 온보딩 리다이렉트)
 export async function apiFetch(url, options = {}) {
   try {
     const response = await fetch(url, options);
 
-    // 401 Unauthorized 또는 403 Forbidden(인증 만료/유효하지 않은 토큰) 시 온보딩 리다이렉트
-    if (response.status === 401 || response.status === 403) {
-      handleAuthOrNetworkError(response.status);
+    // 401 Unauthorized 시 온보딩 리다이렉트
+    if (response.status === 401) {
+      handleAuthOrNetworkError(401);
     }
 
     return response;
   } catch (networkError) {
-    // 백엔드 서버 다운, CORS 차단, 네트워크 단절(Fetch failure) 시 온보딩으로 리다이렉트
     console.error("Backend connection failure:", networkError);
-    handleAuthOrNetworkError(networkError);
-    throw new Error("서버와의 연결이 원활하지 않습니다. 온보딩 페이지로 이동합니다.");
+    throw new Error("서버와의 연결이 원활하지 않습니다.");
   }
 }
+
 
 // 회원가입 API 호출 (/api/auth/signup) -> email, password 전송
 export async function signupUser({ email, password }) {
