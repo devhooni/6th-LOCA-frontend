@@ -908,9 +908,10 @@ export default function MyPage() {
             <div>
               <h3 className="text-base font-bold text-[#111]">로그아웃 하시겠습니까?</h3>
               <p className="text-sm text-gray-500 mt-2">
-                저장된 계정 정보가 삭제됩니다.
+                메인 페이지로 돌아갑니다.
               </p>
             </div>
+
             <div className="flex space-x-2 pt-2">
               <button
                 onClick={() => setShowLogoutConfirm(false)}

@@ -13,7 +13,7 @@ import ForYouPage from "./pages/ForYouPage";
 import FriendsPage from "./pages/FriendsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// 핵심 로카프렌즈 마스코트 이미지 프리로딩 목록
+// 핵심 로카프렌즈 마스코트 및 PC 배경 이미지 프리로딩 목록
 const CRITICAL_IMAGES = [
   "/brand-icon.svg",
   "/imgs/start.png",
@@ -30,7 +30,12 @@ const CRITICAL_IMAGES = [
   "/imgs/Odi.png",
   "/imgs/CoCo.png",
   "/imgs/Archie.png",
+  "/imgs/bg1.png",
+  "/imgs/bg2.png",
+  "/imgs/bg3.png",
+  "/imgs/bg4.png",
 ];
+
 
 // 인증 필요 라우트 가드 (로그인 미완료 시 어떤 링크로 들어가도 /onboarding으로 리다이렉트)
 function ProtectedRoute({ children }) {

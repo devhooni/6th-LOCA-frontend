@@ -874,7 +874,7 @@ export default function ExplorePage() {
                       )}
                       <button
                         type="submit"
-                        className="w-6 h-6 rounded-lg bg-[#111] text-white flex items-center justify-center hover:bg-black transition-colors cursor-pointer"
+                        className="w-6 h-6 rounded-lg bg-gray-200 text-gray-700 flex items-center justify-center hover:bg-gray-300 hover:text-gray-900 transition-colors cursor-pointer"
                         title="검색"
                         aria-label="검색"
                       >
@@ -882,6 +882,7 @@ export default function ExplorePage() {
                       </button>
                     </div>
                   </form>
+
 
                   {/* 개인(사람 아이콘) / 공용(지구본 아이콘) 토글 스위처 */}
                   <div className="flex items-center bg-gray-100 p-0.5 rounded-lg flex-none">

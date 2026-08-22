@@ -27,28 +27,33 @@ export function AppShell({ children, className }) {
   const isFriends = location.pathname === "/friends";
 
   return (
-    <div className="mx-auto flex h-[100dvh] w-full max-w-[430px] flex-col bg-white overflow-x-hidden overflow-y-hidden relative shadow-sm">
-      {!hideNav && (
-        <div className="flex-none w-full">
-          <TopBar />
-        </div>
-      )}
-      
-      <main 
-        className={cn(
-          "flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden",
-          !hideNav && !isExplore && !isAdd && !isFriends && "px-5 py-4",
-          className
+    <div className="min-h-screen w-full bg-[#f4f4f5] flex items-center justify-center">
+      <div className="mx-auto flex h-[100dvh] w-full max-w-[430px] flex-col bg-white overflow-x-hidden overflow-y-hidden relative shadow-sm">
+        {!hideNav && (
+          <div className="flex-none w-full">
+            <TopBar />
+          </div>
         )}
-      >
-        {children}
-      </main>
+        
+        <main 
+          className={cn(
+            "flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden",
+            !hideNav && !isExplore && !isAdd && !isFriends && "px-5 py-4",
+            className
+          )}
+        >
+          {children}
+        </main>
 
-      {!hideNav && (
-        <div className="flex-none w-full">
-          <BottomBar />
-        </div>
-      )}
+        {!hideNav && (
+          <div className="flex-none w-full">
+            <BottomBar />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+
+
