@@ -438,7 +438,7 @@ export default function ReviewPage() {
               <span className="text-[11px] text-gray-400">좌우로 넘겨 선택 ➔</span>
             </div>
 
-            <div className="flex space-x-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
+            <div className="flex space-x-2.5 overflow-x-auto pb-2.5 pt-1.5 no-scrollbar -mx-1 px-2">
               {COMPANION_OPTIONS.map((opt) => {
                 const isSelected = companion === opt.value;
                 return (
@@ -446,9 +446,9 @@ export default function ReviewPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setCompanion(opt.value)}
-                    className={`flex-none flex flex-col items-center justify-between w-[88px] h-[110px] p-2.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                    className={`flex-none flex flex-col items-center justify-between w-[86px] h-[108px] p-2.5 rounded-2xl border transition-all cursor-pointer select-none ${
                       isSelected
-                        ? "bg-[#111] text-white border-[#111] shadow-md scale-105"
+                        ? "bg-[#111] text-white border-[#111] shadow-md ring-2 ring-[#111]/15"
                         : "bg-gray-50/80 text-gray-600 border-gray-200/80 hover:bg-white hover:border-gray-300 shadow-2xs"
                     }`}
                   >
@@ -467,6 +467,7 @@ export default function ReviewPage() {
                 );
               })}
             </div>
+
           </div>
         </div>
 

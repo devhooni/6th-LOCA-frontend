@@ -21,6 +21,9 @@
     "@tailwindcss/postcss": "^4",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^25.8.0",
     "tailwindcss": "^4",
     "vite": "^6.0.7"
   }
