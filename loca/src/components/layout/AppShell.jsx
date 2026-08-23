@@ -27,8 +27,8 @@ export function AppShell({ children, className }) {
   const isFriends = location.pathname === "/friends";
 
   return (
-    <div className="min-h-screen w-full bg-[#f4f4f5] flex items-center justify-center">
-      <div className="mx-auto flex h-[100dvh] w-full max-w-[430px] flex-col bg-white overflow-x-hidden overflow-y-hidden relative shadow-sm">
+    <div className="w-full h-full h-[100dvh] bg-white flex flex-col md:bg-[#f4f4f5] md:min-h-screen md:items-center md:justify-center">
+      <div className="mx-auto flex h-full h-[100dvh] w-full max-w-[430px] flex-col bg-white overflow-hidden relative md:shadow-sm">
         {!hideNav && (
           <div className="flex-none w-full">
             <TopBar />
@@ -54,6 +54,7 @@ export function AppShell({ children, className }) {
     </div>
   );
 }
+
 
 
 
