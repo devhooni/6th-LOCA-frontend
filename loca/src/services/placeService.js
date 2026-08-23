@@ -195,19 +195,22 @@ export async function loginUser({ email, password }) {
 export async function fetchExploreRecommendations(tagIds = [1], page = 0, size = 20) {
   const queryParams = new URLSearchParams();
 
-  if (Array.isArray(tagIds) && tagIds.length > 0) {
-    tagIds.forEach((id) => queryParams.append("tagIds", id.toString()));
-  } else if (tagIds) {
-    queryParams.append("tagIds", tagIds.toString());
-  } else {
-    queryParams.append("tagIds", "1");
-  }
+  const activeTags = Array.isArray(tagIds) && tagIds.length > 0
+    ? tagIds
+    : (tagIds !== undefined && tagIds !== null && tagIds !== "" ? [tagIds] : [1]);
+
+  activeTags.forEach((id) => {
+    if (id !== undefined && id !== null && id !== "") {
+      queryParams.append("tagIds", id.toString());
+    }
+  });
 
   if (page !== undefined && page !== null) queryParams.append("page", page.toString());
   if (size !== undefined && size !== null) queryParams.append("size", size.toString());
 
   const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
   const url = getApiUrl(`/api/recommendations/explore${queryString}`);
+
 
   const token = localStorage.getItem("accessToken");
   const headers = { "Content-Type": "application/json" };

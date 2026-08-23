@@ -57,6 +57,7 @@ export default function ExplorePage() {
   // Tab & Filter state
   const [placeType, setPlaceType] = useState("공용"); // 기본값 '공용'으로 설정
   const [categoryFilter, setCategoryFilter] = useState("전체");
+  const [selectedTagIds, setSelectedTagIds] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
   const [tagMap, setTagMap] = useState({});
   const [searchInput, setSearchInput] = useState("");
@@ -98,7 +99,7 @@ export default function ExplorePage() {
   useEffect(() => {
     fetchTags()
       .then((tags) => {
-        if (Array.isArray(tags)) {
+        if (Array.isArray(tags) && tags.length > 0) {
           setAvailableTags(tags);
           const tMap = {};
           tags.forEach((t) => {
@@ -107,9 +108,17 @@ export default function ExplorePage() {
             if (tId !== undefined && tName) tMap[tId] = tName;
           });
           setTagMap(tMap);
+
+          // 태그가 불러와지면 전체 태그 ID 목록을 기본 활성 태그로 등록
+          const allIds = tags.map((t) => t.tagId ?? t.id).filter(Boolean);
+          if (allIds.length > 0) {
+            setSelectedTagIds(allIds);
+            handleSelectPublicRef.current(allIds, 0);
+          }
         }
       })
       .catch((err) => console.warn("Tags load failed:", err));
+
 
     // 내 리뷰 목록 및 장소별 리뷰 개수 집계 (캐시 경유 → 중복 호출 없음)
     fetchMyReviews()
@@ -329,8 +338,18 @@ export default function ExplorePage() {
     setPublicPage(pageNum);
 
     try {
-      // /api/recommendations/explore?tagIds=1&page=0&size=20
-      const activeTags = targetTagIds && targetTagIds.length > 0 ? targetTagIds : [1];
+      // 전달된 targetTagIds가 있으면 그것을, 없으면 현재 선택된 selectedTagIds 또는 전체 태그 ID 목록을 사용
+      let activeTags = targetTagIds;
+      if (!activeTags || activeTags.length === 0) {
+        if (selectedTagIds && selectedTagIds.length > 0) {
+          activeTags = selectedTagIds;
+        } else if (availableTags && availableTags.length > 0) {
+          activeTags = availableTags.map((t) => t.tagId ?? t.id).filter(Boolean);
+        } else {
+          activeTags = [1];
+        }
+      }
+
       const recData = await fetchExploreRecommendations(activeTags, pageNum, 20);
 
       const fetchedPlaces = recData?.content || (Array.isArray(recData) ? recData : []);
@@ -346,7 +365,8 @@ export default function ExplorePage() {
     } finally {
       setIsLoadingPlaces(false);
     }
-  }, [updateMapPlaceMarkers]);
+  }, [availableTags, selectedTagIds, updateMapPlaceMarkers]);
+
 
   const handleDragStart = (clientY) => {
     setIsDragging(true);
@@ -483,7 +503,8 @@ export default function ExplorePage() {
     if (categoryFilter !== "전체") {
       if (categoryFilter === "개인 장소") {
         filtered = placeType === "개인" ? privatePlaces : [];
-      } else {
+      } else if (placeType === "개인") {
+        // 개인 장소인 경우 클라이언트 사이드 태그 검색
         const targetKeyword = categoryFilter.toLowerCase();
         filtered = filtered.filter((place) => {
           const placeName = (place.name || "").toLowerCase();
@@ -499,6 +520,7 @@ export default function ExplorePage() {
           );
         });
       }
+      // 공용 장소는 /api/recommendations/explore?tagIds={id} 서버 API를 통해 이미 정확한 태그 추천 결과가 반환됨
     }
 
     // 2. 검색어 (submittedSearchTerm) 필터
@@ -529,20 +551,27 @@ export default function ExplorePage() {
     }
   }, [displayPlaces, selectedPlace, mapLoaded, updateMapPlaceMarkers]);
 
-  // 카테고리 필터 클릭 핸들러
+  // 카테고리 필터 클릭 핸들러 (태그별 /api/recommendations/explore 실시간 조회)
   const handleCategoryClick = (category, tagId = null) => {
     setCategoryFilter(category);
     if (placeType === "공용") {
       if (category === "전체") {
-        handleSelectPublic([1], 0);
+        const allIds = availableTags.map((t) => t.tagId ?? t.id).filter(Boolean);
+        const activeIds = allIds.length > 0 ? allIds : [1];
+        setSelectedTagIds(activeIds);
+        handleSelectPublic(activeIds, 0);
       } else {
-        const targetId = tagId || availableTags.find(
-          (t) => t.name === category || t.tagName === category
-        )?.tagId || 1;
+        const targetId =
+          tagId ||
+          availableTags.find((t) => (t.name || t.tagName) === category)?.tagId ||
+          availableTags.find((t) => (t.name || t.tagName) === category)?.id ||
+          1;
+        setSelectedTagIds([targetId]);
         handleSelectPublic([targetId], 0);
       }
     }
   };
+
 
   const handleSelectPublicRef = useRef(handleSelectPublic);
   useEffect(() => {
@@ -954,7 +983,7 @@ export default function ExplorePage() {
                 {placeType === "공용" && (publicPage > 0 || hasNextPublic) && sheetHeight > 130 && (
                   <div className="flex items-center justify-between py-2 border-b border-gray-100 mb-2 flex-none">
                     <button
-                      onClick={() => handleSelectPublic(null, publicPage - 1)}
+                      onClick={() => handleSelectPublic(selectedTagIds, publicPage - 1)}
                       disabled={publicPage === 0 || isLoadingPlaces}
                       className="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
@@ -967,13 +996,14 @@ export default function ExplorePage() {
                     </span>
 
                     <button
-                      onClick={() => handleSelectPublic(null, publicPage + 1)}
+                      onClick={() => handleSelectPublic(selectedTagIds, publicPage + 1)}
                       disabled={!hasNextPublic || isLoadingPlaces}
                       className="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
                       <span>다음</span>
                       <ChevronRight size={14} />
                     </button>
+
                   </div>
                 )}
 
