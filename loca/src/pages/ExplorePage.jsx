@@ -165,12 +165,15 @@ export default function ExplorePage() {
           });
           setTagMap(tMap);
 
-          // 태그가 불러와지면 전체 태그 ID 목록을 기본 활성 태그로 등록
+          // 태그가 불러와지면 전체 태그 ID 목록을 기본 활성 태그로 등록 (외부에서 특정 장소가 전달되지 않은 경우에만 기본 공용 목록 조회)
           const allIds = tags.map((t) => t.tagId ?? t.id).filter(Boolean);
           if (allIds.length > 0) {
             setSelectedTagIds(allIds);
-            handleSelectPublicRef.current(allIds, 0);
+            if (!targetPlaceFromState && !location.state?.place) {
+              handleSelectPublicRef.current(allIds, 0);
+            }
           }
+
         }
       })
       .catch((err) => console.warn("Tags load failed:", err));
@@ -602,6 +605,7 @@ export default function ExplorePage() {
 
 
   // 카테고리/태그 및 검색어 필터링 적용된 목록 계산
+  // 카테고리/태그 및 검색어 필터링 적용된 목록 계산
   const displayPlaces = useMemo(() => {
     // 검색어가 있을 때는 현재 페이지만 보지 않고 전체 공용 장소 풀(allPublicPlaces)에서 검색
     let rawList;
@@ -611,12 +615,20 @@ export default function ExplorePage() {
       rawList = privatePlaces;
     }
 
+    // 만약 selectedPlace가 존재하고 rawList에 없으면 rawList 앞쪽에 추가하여 지도 마커 및 상세 정보가 항상 유지되도록 보장
+    if (selectedPlace) {
+      const activeId = selectedPlace.placeId || selectedPlace.id;
+      if (activeId && !rawList.some((p) => String(p.placeId || p.id) === String(activeId))) {
+        rawList = [selectedPlace, ...rawList];
+      }
+    }
+
     let filtered = rawList;
 
     // 1. 카테고리 필터
     if (categoryFilter !== "전체") {
       if (categoryFilter === "개인 장소") {
-        filtered = placeType === "개인" ? privatePlaces : [];
+        filtered = placeType === "개인" ? rawList : [];
       } else if (placeType === "개인") {
         // 개인 장소인 경우 클라이언트 사이드 태그 검색
         const targetKeyword = categoryFilter.toLowerCase();
@@ -656,7 +668,29 @@ export default function ExplorePage() {
     }
 
     return filtered;
-  }, [placeType, publicPlaces, privatePlaces, allPublicPlaces, categoryFilter, submittedSearchTerm]);
+  }, [placeType, publicPlaces, privatePlaces, allPublicPlaces, categoryFilter, submittedSearchTerm, selectedPlace]);
+
+  // 라우터 state로 전달된 장소 감지 및 선택 동기화 (공유 리스트 등에서 넘어온 경우)
+  useEffect(() => {
+    if (location.state?.place) {
+      const target = location.state.place;
+      const isPriv =
+        target.placeType === "PRIVATE" ||
+        target.placeType === "개인" ||
+        target.placeType === "CUSTOM" ||
+        target.category === "PRIVATE" ||
+        target.category === "개인" ||
+        target.category === "CUSTOM";
+      setPlaceType(isPriv ? "개인" : "공용");
+      handleSelectPlace(target);
+
+      if (mapRef.current && target.lat && target.lng) {
+        const targetPos = new window.kakao.maps.LatLng(target.lat, target.lng);
+        mapRef.current.setCenter(targetPos);
+        mapRef.current.setLevel(3);
+      }
+    }
+  }, [location.state?.place, handleSelectPlace]);
 
   // 검색어나 필터 또는 선택된 장소(selectedPlace)가 바뀔 때 지도 마커 색상 동기화
   useEffect(() => {
@@ -664,6 +698,7 @@ export default function ExplorePage() {
       updateMapPlaceMarkers(displayPlaces, selectedPlace);
     }
   }, [displayPlaces, selectedPlace, mapLoaded, updateMapPlaceMarkers]);
+
 
   // 카테고리 필터 클릭 핸들러 (태그별 /api/recommendations/explore 실시간 조회)
   const handleCategoryClick = (category, tagId = null) => {
@@ -728,8 +763,6 @@ export default function ExplorePage() {
             map.relayout();
             map.setCenter(defaultCenter);
 
-            moveToMyLocationRef.current(map, !targetPlaceFromState);
-
             if (targetPlaceFromState) {
               const isPriv =
                 targetPlaceFromState.placeType === "PRIVATE" ||
@@ -747,8 +780,10 @@ export default function ExplorePage() {
                 updateMapPlaceMarkers([targetPlaceFromState], targetPlaceFromState);
               }
             } else {
+              moveToMyLocationRef.current(map, true);
               handleSelectPublicRef.current();
             }
+
 
 
           }, 100);
@@ -1054,17 +1089,20 @@ export default function ExplorePage() {
                     )}
 
                     {/* 카카오맵 바로가기 버튼 */}
-                    {selectedPlace.kakaoPlaceId && (
-                      <a
-                        href={`https://place.map.kakao.com/${selectedPlace.kakaoPlaceId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center justify-center w-full py-2.5 rounded-xl bg-yellow-50 hover:bg-yellow-100/80 text-yellow-900 text-xs font-bold transition-colors"
-                      >
-                        <span>카카오맵에서 보기</span>
-                        <ExternalLink size={13} className="ml-1.5" />
-                      </a>
-                    )}
+                    <a
+                      href={
+                        selectedPlace.kakaoPlaceId
+                          ? `https://place.map.kakao.com/${selectedPlace.kakaoPlaceId}`
+                          : `https://map.kakao.com/link/map/${encodeURIComponent(selectedPlace.name)},${selectedPlace.lat},${selectedPlace.lng}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-center w-full py-2.5 rounded-xl bg-yellow-50 hover:bg-yellow-100/80 text-yellow-900 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <span>카카오맵에서 보기</span>
+                      <ExternalLink size={13} className="ml-1.5" />
+                    </a>
+
 
 
 

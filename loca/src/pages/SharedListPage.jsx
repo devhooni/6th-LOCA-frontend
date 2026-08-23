@@ -124,7 +124,7 @@ export default function SharedListPage() {
 
   const handleViewInExplore = (place) => {
     const accessToken = localStorage.getItem("accessToken");
-    const isOtherUserPrivate = place.placeType === "PRIVATE" || place.placeType === "개인";
+    const isOtherUserPrivate = true;
 
     const placePayload = {
       id: place.placeId || place.id,
@@ -135,11 +135,12 @@ export default function SharedListPage() {
       longitude: Number(place.lng || place.longitude),
       lat: Number(place.lat || place.latitude),
       lng: Number(place.lng || place.longitude),
-      category: place.placeType || place.category,
-      placeType: place.placeType || (isOtherUserPrivate ? "PRIVATE" : "PUBLIC"),
+      category: place.placeType || place.category || "CUSTOM",
+      placeType: place.placeType || "CUSTOM",
       kakaoPlaceId: place.kakaoPlaceId,
       isSharedPlace: true,
       isOtherUserPrivate: isOtherUserPrivate,
+      isShareable: place.isShareable !== false,
     };
 
     if (accessToken) {
@@ -151,6 +152,7 @@ export default function SharedListPage() {
       setShowAuthModal(true);
     }
   };
+
 
   // 팝업 모달에서 로그인/회원가입 처리 후 바로 장소 상세 화면으로 이동
   const handleAuthSubmit = async (e) => {
@@ -324,7 +326,8 @@ export default function SharedListPage() {
               return (
                 <div
                   key={placeId}
-                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-2xs hover:border-gray-200 transition-all space-y-3"
+                  onClick={() => handleViewInExplore(place)}
+                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-2xs hover:border-gray-200 transition-all space-y-3 cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start space-x-3 min-w-0 flex-1">
@@ -358,6 +361,7 @@ export default function SharedListPage() {
                       href={kakaoMapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-semibold transition-colors"
                     >
                       <ExternalLink size={13} />
@@ -365,7 +369,10 @@ export default function SharedListPage() {
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleViewInExplore(place)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewInExplore(place);
+                      }}
                       className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors flex-none cursor-pointer"
                       title="LOCA 탐색 지도에서 보기"
                     >
@@ -375,6 +382,7 @@ export default function SharedListPage() {
                   </div>
 
                 </div>
+
               );
             })
           )}
