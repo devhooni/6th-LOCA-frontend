@@ -19,10 +19,12 @@ import {
   Folder,
   Plus,
   Check,
+  Lock,
 } from "lucide-react";
 import {
   fetchExploreRecommendations,
   fetchPublicPlaceDetail,
+  fetchPrivatePlaceDetail,
   fetchPublicPlaces,
   fetchPrivatePlaces,
   fetchTags,
@@ -33,6 +35,7 @@ import {
   createUserList,
   addPlaceToUserList,
 } from "../services/placeService";
+
 
 
 import aloneImg from "/imgs/alone.png";
@@ -110,6 +113,8 @@ export default function ExplorePage() {
   const [isLoadingReviewDetail, setIsLoadingReviewDetail] = useState(false);
   const [reviewDetailError, setReviewDetailError] = useState(null);
 
+  // 비공개 장소 접근 제한(403/Forbidden) 상태
+  const [isPrivateForbiddenError, setIsPrivateForbiddenError] = useState(false);
 
   // Bottom Sheet State & Touch Handling
   const [sheetState, setSheetState] = useState("half");
@@ -125,6 +130,19 @@ export default function ExplorePage() {
       selectedPlace &&
       !privatePlaces.some((p) => String(p.placeId || p.id) === String(selectedPlace.placeId || selectedPlace.id)))
   );
+
+  // 나만보기(비공개) 상태인지 여부 (빨간색 '비공개 상태입니다.' 표시용)
+  const isPrivateLocked = Boolean(
+    (isOtherUserPrivate && (
+      selectedPlace?.isShareable === false ||
+      selectedPlace?.visibility === "PRIVATE" ||
+      selectedPlace?.visibility === "ONLY_ME" ||
+      selectedPlace?.isPrivate === true ||
+      selectedPlace?.isOnlyMe === true ||
+      isPrivateForbiddenError
+    ))
+  );
+
 
 
   // 전체 태그 목록 & 리뷰 목록 불러와 tagMap 및 reviewCountMap 구성
@@ -182,6 +200,7 @@ export default function ExplorePage() {
     setSheetHeight(255);
     setPlaceReviews([]);
     setSelectedReviewDetail(null);
+    setIsPrivateForbiddenError(false);
 
     if (mapRef.current && place.lat && place.lng) {
       const targetPos = new window.kakao.maps.LatLng(place.lat, place.lng);
@@ -193,14 +212,50 @@ export default function ExplorePage() {
       setIsLoadingDetail(true);
       setIsLoadingPlaceReviews(true);
 
-      // 장소 상세 조회 (취소 가능)
-      fetchPublicPlaceDetail(placeId)
+      const isPriv =
+        place.placeType === "PRIVATE" ||
+        place.placeType === "개인" ||
+        place.category === "PRIVATE";
+
+      // 1. 장소 상세 조회 (개인 장소인 경우 fetchPrivatePlaceDetail 우선 시도)
+      const detailPromise = isPriv
+        ? fetchPrivatePlaceDetail(placeId).catch((privErr) => {
+            if (
+              privErr?.message?.includes("403") ||
+              privErr?.message?.includes("권한") ||
+              privErr?.message?.includes("비공개")
+            ) {
+              if (!abortController.signal.aborted) {
+                setIsPrivateForbiddenError(true);
+              }
+            }
+            return fetchPublicPlaceDetail(placeId).catch(() => null);
+          })
+        : fetchPublicPlaceDetail(placeId);
+
+      detailPromise
         .then((detail) => {
-          if (!abortController.signal.aborted) setPlaceDetail(detail);
+          if (!abortController.signal.aborted) {
+            setPlaceDetail(detail);
+            if (
+              detail?.isShareable === false ||
+              detail?.visibility === "PRIVATE" ||
+              detail?.visibility === "ONLY_ME"
+            ) {
+              setIsPrivateForbiddenError(true);
+            }
+          }
         })
         .catch((err) => {
           if (!abortController.signal.aborted) {
             console.warn("Place detail fetch failed, using place basic info:", err);
+            if (
+              err?.message?.includes("403") ||
+              err?.message?.includes("권한") ||
+              err?.message?.includes("비공개")
+            ) {
+              setIsPrivateForbiddenError(true);
+            }
             setPlaceDetail(null);
           }
         })
@@ -208,7 +263,7 @@ export default function ExplorePage() {
           if (!abortController.signal.aborted) setIsLoadingDetail(false);
         });
 
-      // 장소에 등록된 리뷰 목록 조회 (/api/places/{placeId}/reviews)
+      // 2. 장소에 등록된 리뷰 목록 조회 (/api/places/{placeId}/reviews)
       try {
         const reviewsRes = await fetchPlaceReviews(placeId, 0);
         if (abortController.signal.aborted) return;
@@ -222,6 +277,14 @@ export default function ExplorePage() {
       } catch (err) {
         if (abortController.signal.aborted) return;
         console.warn("Place reviews fetch failed:", err);
+        if (
+          isPriv &&
+          (err?.message?.includes("403") ||
+            err?.message?.includes("권한") ||
+            err?.message?.includes("비공개"))
+        ) {
+          setIsPrivateForbiddenError(true);
+        }
         setPlaceReviews([]);
         setReviewCountMap((prev) => ({
           ...prev,
@@ -235,6 +298,7 @@ export default function ExplorePage() {
       setPlaceReviews([]);
     }
   }, []);
+
 
   // 리뷰 클릭 시 리뷰 상세 모달 오픈 (GET /api/users/me/reviews/{visitId})
   const handleOpenReviewDetail = async (review) => {
@@ -892,10 +956,16 @@ export default function ExplorePage() {
                       <span className="text-xs font-semibold text-gray-400">
                         {placeType} 장소
                       </span>
-                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
-                        <MessageSquareText size={11} className="text-gray-500" />
-                        <span>{placeReviews.length}</span>
-                      </span>
+                      {isPrivateLocked ? (
+                        <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
+                          비공개 상태입니다.
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
+                          <MessageSquareText size={11} className="text-gray-500" />
+                          <span>{placeReviews.length}</span>
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="text-base font-bold text-[#111] truncate">
@@ -950,7 +1020,16 @@ export default function ExplorePage() {
                 </div>
 
 
-                {isLoadingDetail ? (
+                {isPrivateLocked ? (
+                  /* 비공개 상태 안내 (빨간 글씨) */
+                  <div className="py-8 px-4 text-center bg-red-50/60 rounded-2xl border border-red-100 space-y-2">
+                    <Lock size={22} className="mx-auto text-red-500" />
+                    <p className="text-sm font-bold text-red-600">비공개 상태입니다.</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      작성자가 '나만 보기'로 설정하여 상세 정보 및 리뷰를 열람할 수 없습니다.
+                    </p>
+                  </div>
+                ) : isLoadingDetail ? (
                   <div className="flex items-center justify-center py-6 text-gray-400 text-sm">
                     <Loader2 className="animate-spin mr-2" size={18} />
                     상세 정보를 불러오는 중...
@@ -969,6 +1048,7 @@ export default function ExplorePage() {
                     )}
 
                     {/* 분위기 태그 */}
+
                     {placeDetail?.tags && placeDetail.tags.length > 0 && (
                       <div className="space-y-1.5">
                         <h4 className="text-xs font-semibold text-gray-500">분위기 태그</h4>
