@@ -12,9 +12,12 @@ import {
   Loader2,
   Sparkles,
   Compass,
+  X,
+  Mail,
+  Lock,
 } from "lucide-react";
 
-import { fetchSharedList } from "../services/placeService";
+import { fetchSharedList, loginUser, signupUser } from "../services/placeService";
 
 const RANDOM_BGS = [
   "/imgs/bg1.png",
@@ -38,6 +41,16 @@ export default function SharedListPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // 미로그인 시 로그인/회원가입 팝업 모달 상태
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState("login"); // "login" | "signup"
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState(null);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [pendingPlace, setPendingPlace] = useState(null);
+
 
 
   useEffect(() => {
@@ -100,12 +113,16 @@ export default function SharedListPage() {
     if (accessToken) {
       navigate("/explore");
     } else {
-      navigate("/onboarding");
+      setPendingPlace(null);
+      setAuthError(null);
+      setShowAuthModal(true);
     }
   };
 
   const handleViewInExplore = (place) => {
     const accessToken = localStorage.getItem("accessToken");
+    const isOtherUserPrivate = place.placeType === "PRIVATE" || place.placeType === "개인";
+
     const placePayload = {
       id: place.placeId || place.id,
       placeId: place.placeId || place.id,
@@ -116,15 +133,59 @@ export default function SharedListPage() {
       lat: Number(place.lat || place.latitude),
       lng: Number(place.lng || place.longitude),
       category: place.placeType || place.category,
+      placeType: place.placeType || (isOtherUserPrivate ? "PRIVATE" : "PUBLIC"),
       kakaoPlaceId: place.kakaoPlaceId,
+      isSharedPlace: true,
+      isOtherUserPrivate: isOtherUserPrivate,
     };
 
     if (accessToken) {
       navigate("/explore", { state: { place: placePayload } });
     } else {
-      navigate("/onboarding", { state: { from: { pathname: "/explore" }, place: placePayload } });
+      // 미로그인 시 온보딩 페이지로 튕기지 않고 로그인/회원가입 팝업 오픈
+      setPendingPlace(placePayload);
+      setAuthError(null);
+      setShowAuthModal(true);
     }
   };
+
+  // 팝업 모달에서 로그인/회원가입 처리 후 바로 장소 상세 화면으로 이동
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    if (!authEmail.trim() || !authPassword.trim()) {
+      setAuthError("이메일과 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+    setAuthError(null);
+
+    try {
+      if (authTab === "signup") {
+        await signupUser({
+          email: authEmail.trim(),
+          password: authPassword.trim(),
+        });
+      }
+      await loginUser({
+        email: authEmail.trim(),
+        password: authPassword.trim(),
+      });
+
+      setShowAuthModal(false);
+      if (pendingPlace) {
+        navigate("/explore", { state: { place: pendingPlace } });
+      } else {
+        navigate("/explore");
+      }
+    } catch (err) {
+      console.error("Auth Submit Error:", err);
+      setAuthError(err.message || "로그인/회원가입에 실패했습니다.");
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
 
 
   if (isLoading) {
@@ -350,6 +411,132 @@ export default function SharedListPage() {
           </div>
         </div>
       )}
+
+      {/* 로그인 / 회원가입 팝업 모달 */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-fade-in">
+          <div
+            className="absolute inset-0"
+            onClick={() => setShowAuthModal(false)}
+          />
+
+          <div className="relative z-10 bg-white rounded-3xl p-6 w-full max-w-sm space-y-5 shadow-2xl animate-slide-up">
+            {/* 모달 상단 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <img src="/brand-icon.svg" alt="LOCA" className="w-5 h-5" />
+                <span className="text-sm font-bold tracking-wider text-[#111]">LOCA</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                title="닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 안내 문구 */}
+            <div className="space-y-1 text-left">
+              <h3 className="text-base font-bold text-[#111]">
+                {authTab === "login" ? "로그인이 필요합니다" : "간편 회원가입"}
+              </h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                {pendingPlace
+                  ? `'${pendingPlace.name}' 장소 정보를 확인하고 탐색을 시작하세요.`
+                  : "LOCA의 다양한 추천 스팟과 나만의 장소를 확인해보세요."}
+              </p>
+            </div>
+
+            {/* 로그인 / 회원가입 탭 스위처 */}
+            <div className="flex p-1 bg-gray-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab("login");
+                  setAuthError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  authTab === "login"
+                    ? "bg-white text-[#111] shadow-2xs"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                로그인
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab("signup");
+                  setAuthError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  authTab === "signup"
+                    ? "bg-white text-[#111] shadow-2xs"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                회원가입
+              </button>
+            </div>
+
+            {/* 폼 입력 영역 */}
+            <form onSubmit={handleAuthSubmit} className="space-y-3">
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold text-gray-700">이메일</label>
+                <div className="relative flex items-center">
+                  <Mail size={15} className="absolute left-3.5 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="이메일을 입력하세요"
+                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] font-bold text-gray-700">비밀번호</label>
+                <div className="relative flex items-center">
+                  <Lock size={15} className="absolute left-3.5 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="비밀번호를 입력하세요"
+                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+              </div>
+
+              {authError && (
+                <p className="text-xs text-red-500 text-left pt-1 leading-snug">
+                  {authError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmittingAuth || !authEmail.trim() || !authPassword.trim()}
+                className="w-full py-3.5 rounded-xl bg-[#111] hover:bg-gray-800 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer mt-2"
+              >
+                {isSubmittingAuth ? (
+                  <Loader2 size={16} className="animate-spin text-white" />
+                ) : (
+                  <span>
+                    {authTab === "login" ? "로그인하고 바로 보기" : "회원가입하고 바로 보기"}
+                  </span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

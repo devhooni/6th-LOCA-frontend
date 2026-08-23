@@ -118,6 +118,15 @@ export default function ExplorePage() {
   const dragStartHeight = useRef(255);
   const [sheetHeight, setSheetHeight] = useState(255);
 
+  // 다른 사용자가 등록한 비공개(Private) 장소인지 여부 판단
+  const isOtherUserPrivate = Boolean(
+    selectedPlace?.isOtherUserPrivate ||
+    ((placeType === "개인" || selectedPlace?.placeType === "PRIVATE" || selectedPlace?.category === "PRIVATE") &&
+      selectedPlace &&
+      !privatePlaces.some((p) => String(p.placeId || p.id) === String(selectedPlace.placeId || selectedPlace.id)))
+  );
+
+
   // 전체 태그 목록 & 리뷰 목록 불러와 tagMap 및 reviewCountMap 구성
   useEffect(() => {
     fetchTags()
@@ -675,10 +684,22 @@ export default function ExplorePage() {
             moveToMyLocationRef.current(map, !targetPlaceFromState);
 
             if (targetPlaceFromState) {
+              const isPriv =
+                targetPlaceFromState.placeType === "PRIVATE" ||
+                targetPlaceFromState.placeType === "개인" ||
+                targetPlaceFromState.category === "PRIVATE" ||
+                targetPlaceFromState.category === "개인";
+              setPlaceType(isPriv ? "개인" : "공용");
               handleSelectPlaceRef.current(targetPlaceFromState);
+              if (mapRef.current && targetPlaceFromState.lat && targetPlaceFromState.lng) {
+                const targetPos = new window.kakao.maps.LatLng(targetPlaceFromState.lat, targetPlaceFromState.lng);
+                mapRef.current.setCenter(targetPos);
+                mapRef.current.setLevel(3);
+              }
             } else {
               handleSelectPublicRef.current();
             }
+
           }, 100);
         });
       } else {
@@ -887,26 +908,30 @@ export default function ExplorePage() {
                     </p>
                   </div>
 
-                  {/* 우측 상단: [✏️ 리뷰] [📁 리스트] [✕ 닫기] */}
+                  {/* 우측 상단: [✏️ 리뷰] [📁 리스트] (다른 사람의 개인 장소일 때는 숨김) [✕ 닫기] */}
                   <div className="flex items-center space-x-1 flex-none pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleWriteReview(selectedPlace)}
-                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-[#111] flex items-center justify-center transition-colors cursor-pointer"
-                      title="리뷰 쓰기"
-                      aria-label="리뷰 쓰기"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenAddToListModal(selectedPlace)}
-                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-indigo-600 flex items-center justify-center transition-colors cursor-pointer"
-                      title="내 리스트 추가"
-                      aria-label="내 리스트 추가"
-                    >
-                      <FolderPlus size={14} />
-                    </button>
+                    {!isOtherUserPrivate && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleWriteReview(selectedPlace)}
+                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-[#111] flex items-center justify-center transition-colors cursor-pointer"
+                          title="리뷰 쓰기"
+                          aria-label="리뷰 쓰기"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddToListModal(selectedPlace)}
+                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-indigo-600 flex items-center justify-center transition-colors cursor-pointer"
+                          title="내 리스트 추가"
+                          aria-label="내 리스트 추가"
+                        >
+                          <FolderPlus size={14} />
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -921,6 +946,7 @@ export default function ExplorePage() {
                       <X size={18} />
                     </button>
                   </div>
+
                 </div>
 
 
