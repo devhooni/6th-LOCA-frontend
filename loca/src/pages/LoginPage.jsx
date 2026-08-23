@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { loginUser } from "../services/placeService";
+import RobotCaptcha from "../components/common/RobotCaptcha";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isRobotVerified, setIsRobotVerified] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +29,10 @@ export default function LoginPage() {
       setErrorMsg("비밀번호를 입력해주세요.");
       return;
     }
+    if (!isRobotVerified) {
+      setErrorMsg("공격 방지를 위해 '로봇이 아닙니다' 인증을 완료해주세요.");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -42,6 +48,7 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="flex flex-col h-full w-full bg-white px-6 py-6 select-none overflow-y-auto">
@@ -117,6 +124,11 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* 로봇 방지 인증 (공격 방어) */}
+          <div className="pt-1">
+            <RobotCaptcha onVerify={setIsRobotVerified} />
+          </div>
+
           {/* 에러 메시지 */}
           {errorMsg && (
             <p className="text-xs text-red-500 ml-0.5">{errorMsg}</p>
@@ -128,8 +140,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 rounded-xl bg-[#111] text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="w-full py-3.5 rounded-xl bg-[#111] text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-2xs"
           >
+
             {isLoading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />

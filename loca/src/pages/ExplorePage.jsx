@@ -123,25 +123,31 @@ export default function ExplorePage() {
   const dragStartHeight = useRef(255);
   const [sheetHeight, setSheetHeight] = useState(255);
 
-  // 다른 사용자가 등록한 비공개(Private) 장소인지 여부 판단
+  // 다른 사용자가 등록한 비공개/커스텀(Private) 장소인지 여부 판단
   const isOtherUserPrivate = Boolean(
     selectedPlace?.isOtherUserPrivate ||
-    ((placeType === "개인" || selectedPlace?.placeType === "PRIVATE" || selectedPlace?.category === "PRIVATE") &&
+    ((placeType === "개인" ||
+      selectedPlace?.placeType === "PRIVATE" ||
+      selectedPlace?.placeType === "CUSTOM" ||
+      selectedPlace?.category === "PRIVATE" ||
+      selectedPlace?.category === "CUSTOM") &&
       selectedPlace &&
       !privatePlaces.some((p) => String(p.placeId || p.id) === String(selectedPlace.placeId || selectedPlace.id)))
   );
 
   // 나만보기(비공개) 상태인지 여부 (빨간색 '비공개 상태입니다.' 표시용)
+  // isShareable: true 또는 PUBLIC으로 설정된 전체 공개 장소는 잠기지 않고 모든 정보가 정상 노출됨
   const isPrivateLocked = Boolean(
-    (isOtherUserPrivate && (
+    isOtherUserPrivate && (
       selectedPlace?.isShareable === false ||
       selectedPlace?.visibility === "PRIVATE" ||
       selectedPlace?.visibility === "ONLY_ME" ||
       selectedPlace?.isPrivate === true ||
       selectedPlace?.isOnlyMe === true ||
-      isPrivateForbiddenError
-    ))
+      selectedPlace?.isLocked === true
+    )
   );
+
 
 
 
@@ -215,48 +221,24 @@ export default function ExplorePage() {
       const isPriv =
         place.placeType === "PRIVATE" ||
         place.placeType === "개인" ||
-        place.category === "PRIVATE";
+        place.placeType === "CUSTOM" ||
+        place.category === "PRIVATE" ||
+        place.category === "CUSTOM";
 
       // 1. 장소 상세 조회 (개인 장소인 경우 fetchPrivatePlaceDetail 우선 시도)
       const detailPromise = isPriv
-        ? fetchPrivatePlaceDetail(placeId).catch((privErr) => {
-            if (
-              privErr?.message?.includes("403") ||
-              privErr?.message?.includes("권한") ||
-              privErr?.message?.includes("비공개")
-            ) {
-              if (!abortController.signal.aborted) {
-                setIsPrivateForbiddenError(true);
-              }
-            }
-            return fetchPublicPlaceDetail(placeId).catch(() => null);
-          })
-        : fetchPublicPlaceDetail(placeId);
+        ? fetchPrivatePlaceDetail(placeId).catch(() => fetchPublicPlaceDetail(placeId).catch(() => null))
+        : fetchPublicPlaceDetail(placeId).catch(() => null);
 
       detailPromise
         .then((detail) => {
           if (!abortController.signal.aborted) {
-            setPlaceDetail(detail);
-            if (
-              detail?.isShareable === false ||
-              detail?.visibility === "PRIVATE" ||
-              detail?.visibility === "ONLY_ME"
-            ) {
-              setIsPrivateForbiddenError(true);
-            }
+            setPlaceDetail(detail || place);
           }
         })
-        .catch((err) => {
+        .catch(() => {
           if (!abortController.signal.aborted) {
-            console.warn("Place detail fetch failed, using place basic info:", err);
-            if (
-              err?.message?.includes("403") ||
-              err?.message?.includes("권한") ||
-              err?.message?.includes("비공개")
-            ) {
-              setIsPrivateForbiddenError(true);
-            }
-            setPlaceDetail(null);
+            setPlaceDetail(place);
           }
         })
         .finally(() => {
@@ -267,6 +249,7 @@ export default function ExplorePage() {
       try {
         const reviewsRes = await fetchPlaceReviews(placeId, 0);
         if (abortController.signal.aborted) return;
+
 
         const list = reviewsRes?.content || (Array.isArray(reviewsRes) ? reviewsRes : []);
         setPlaceReviews(list);
@@ -751,18 +734,22 @@ export default function ExplorePage() {
               const isPriv =
                 targetPlaceFromState.placeType === "PRIVATE" ||
                 targetPlaceFromState.placeType === "개인" ||
+                targetPlaceFromState.placeType === "CUSTOM" ||
                 targetPlaceFromState.category === "PRIVATE" ||
-                targetPlaceFromState.category === "개인";
+                targetPlaceFromState.category === "개인" ||
+                targetPlaceFromState.category === "CUSTOM";
               setPlaceType(isPriv ? "개인" : "공용");
               handleSelectPlaceRef.current(targetPlaceFromState);
               if (mapRef.current && targetPlaceFromState.lat && targetPlaceFromState.lng) {
                 const targetPos = new window.kakao.maps.LatLng(targetPlaceFromState.lat, targetPlaceFromState.lng);
                 mapRef.current.setCenter(targetPos);
                 mapRef.current.setLevel(3);
+                updateMapPlaceMarkers([targetPlaceFromState], targetPlaceFromState);
               }
             } else {
               handleSelectPublicRef.current();
             }
+
 
           }, 100);
         });

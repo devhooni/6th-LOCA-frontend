@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { fetchSharedList, loginUser, signupUser } from "../services/placeService";
+import RobotCaptcha from "../components/common/RobotCaptcha";
 
 const RANDOM_BGS = [
   "/imgs/bg1.png",
@@ -49,7 +50,9 @@ export default function SharedListPage() {
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState(null);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [isRobotVerified, setIsRobotVerified] = useState(false);
   const [pendingPlace, setPendingPlace] = useState(null);
+
 
 
 
@@ -156,9 +159,14 @@ export default function SharedListPage() {
       setAuthError("이메일과 비밀번호를 모두 입력해주세요.");
       return;
     }
+    if (!isRobotVerified) {
+      setAuthError("공격 방지를 위해 '로봇이 아닙니다' 인증을 완료해주세요.");
+      return;
+    }
 
     setIsSubmittingAuth(true);
     setAuthError(null);
+
 
     try {
       if (authTab === "signup") {
@@ -513,6 +521,14 @@ export default function SharedListPage() {
                 </div>
               </div>
 
+              {/* 로봇 방지 인증 (공격 방어) */}
+              <div className="pt-1">
+                <RobotCaptcha
+                  onVerify={setIsRobotVerified}
+                  resetKey={authTab}
+                />
+              </div>
+
               {authError && (
                 <p className="text-xs text-red-500 text-left pt-1 leading-snug">
                   {authError}
@@ -524,6 +540,7 @@ export default function SharedListPage() {
                 disabled={isSubmittingAuth || !authEmail.trim() || !authPassword.trim()}
                 className="w-full py-3.5 rounded-xl bg-[#111] hover:bg-gray-800 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer mt-2"
               >
+
                 {isSubmittingAuth ? (
                   <Loader2 size={16} className="animate-spin text-white" />
                 ) : (
