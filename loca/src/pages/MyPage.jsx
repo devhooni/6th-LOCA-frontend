@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+
 import {
   User,
   LogOut,
@@ -20,19 +21,42 @@ import {
   Sparkles,
   X,
   HelpCircle,
+  Folder,
+  Share2,
+  ExternalLink,
+  Copy,
+  CheckCheck,
   ChevronDown,
+  Search,
 } from "lucide-react";
+
+
 import {
+  fetchUserLists,
+  fetchUserListDetail,
+  createUserList,
+  updateUserList,
+  deleteUserList,
+  shareUserList,
+  unshareUserList,
+  addPlaceToUserList,
+  removePlaceFromUserList,
   fetchPrivatePlaces,
   fetchPublicPlaces,
+  fetchAllPublicPlaces,
   fetchTags,
+
   updatePrivatePlace,
   deletePrivatePlace,
   fetchMyReviews,
   deleteReview,
   fetchUserIcon,
   updateUserIcon,
+  invalidateCache,
 } from "../services/placeService";
+
+
+
 
 import aloneImg from "/imgs/alone.png";
 
@@ -147,12 +171,53 @@ export default function MyPage() {
 
 
   // 탭 상태: 'places' | 'reviews'
+  // 탭 상태: 'places' | 'lists' | 'reviews'
   const [activeTab, setActiveTab] = useState("places");
 
   // 내 장소 목록 관련 상태
   const [myPlaces, setMyPlaces] = useState([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [placesError, setPlacesError] = useState(null);
+
+  // 내 리스트 목록 관련 상태 (GET/POST /api/users/me/lists, GET/PUT/DELETE /api/users/me/lists/{id}, share, items)
+  const [userLists, setUserLists] = useState([]);
+  const [isLoadingLists, setIsLoadingLists] = useState(false);
+  const [listsError, setListsError] = useState(null);
+  const [deletingListId, setDeletingListId] = useState(null);
+  const [sharingListId, setSharingListId] = useState(null);
+  const [sharedLinks, setSharedLinks] = useState({}); // { [listId]: { shareToken, sharedAt, shareUrl, copied } }
+  const [toastMessage, setToastMessage] = useState(null);
+
+  // 리스트 생성 모달 상태
+  const [showCreateListModal, setShowCreateListModal] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [createListError, setCreateListError] = useState(null);
+
+  // 리스트 수정 모달 상태
+  const [showEditListModal, setShowEditListModal] = useState(false);
+  const [editingList, setEditingList] = useState(null);
+  const [editListName, setEditListName] = useState("");
+  const [isUpdatingList, setIsUpdatingList] = useState(false);
+  const [updateListError, setUpdateListError] = useState(null);
+
+
+
+  // 리스트 상세 & 포함 장소 보기 모달 상태
+  const [selectedListDetail, setSelectedListDetail] = useState(null);
+  const [isLoadingListDetail, setIsLoadingListDetail] = useState(false);
+  const [listDetailError, setListDetailError] = useState(null);
+  const [deletingListItemId, setDeletingListItemId] = useState(null);
+
+  // 리스트에 장소 추가 모달 상태
+  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false);
+  const [addPlaceTab, setAddPlaceTab] = useState("private"); // "private" (개인 장소) | "public" (공용 장소)
+  const [addPlaceSearch, setAddPlaceSearch] = useState("");
+  const [addingPlaceId, setAddingPlaceId] = useState(null);
+  const [publicPlaces, setPublicPlaces] = useState([]);
+  const [isLoadingPublicPlaces, setIsLoadingPublicPlaces] = useState(false);
+  const [addPlaceError, setAddPlaceError] = useState(null);
+
 
   // 내 리뷰 목록 관련 상태
   const [myReviews, setMyReviews] = useState([]);
@@ -199,41 +264,312 @@ export default function MyPage() {
     }
   };
 
-  // 내 정보 및 내가 생성한 커스텀 장소 + 공용 장소 목록 불러와 placeMap 완성
-  const loadMyPlaces = async () => {
+  // 내 등록 장소 목록 불러오기 (GET /api/places/custom)
+  const loadMyPlaces = async (forceRefresh = false) => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
+
+    if (forceRefresh) {
+      invalidateCache("privatePlaces");
+    }
 
     setIsLoadingPlaces(true);
     setPlacesError(null);
 
-    // 1. 내 개인 장소 먼저 즉시 호출 및 도착하는 대로 화면에 바로 렌더링
-    fetchPrivatePlaces()
-      .then((pRes) => {
-        const privates = Array.isArray(pRes) ? pRes : (pRes?.content || []);
-        setMyPlaces(privates);
-        setPlaceMap((prev) => {
-          const mapObj = { ...prev };
-          privates.forEach((p) => {
-            const pId = p.placeId ?? p.id;
-            if (pId !== undefined && pId !== null) mapObj[pId] = p;
-            if (p.kakaoPlaceId) mapObj[p.kakaoPlaceId] = p;
-          });
-          return mapObj;
+    try {
+      const privates = await fetchPrivatePlaces();
+      const list = Array.isArray(privates) ? privates : (privates?.content || []);
+      setMyPlaces(list);
+      setPlaceMap((prev) => {
+        const mapObj = { ...prev };
+        list.forEach((p) => {
+          const pId = p.placeId ?? p.id;
+          if (pId !== undefined && pId !== null) mapObj[pId] = p;
+          if (p.kakaoPlaceId) mapObj[p.kakaoPlaceId] = p;
         });
-      })
-      .catch((err) => {
-        console.error("Load Private Places Error:", err);
-        setPlacesError(err.message || "내 장소 목록을 불러오지 못했습니다.");
-      })
-      .finally(() => {
-        setIsLoadingPlaces(false);
+        return mapObj;
       });
+    } catch (err) {
+      console.error("Load My Places Error:", err);
+      setPlacesError(err.message || "내 장소 목록을 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingPlaces(false);
+    }
+  };
 
-    // 2. 리뷰 장소명/사진 매핑을 위한 공용 장소는 별도로 비동기 수집 (개인 장소 렌더링을 차단하지 않음)
-    fetchPublicPlaces(0, 100)
-      .then((pubRes) => {
-        const publics = Array.isArray(pubRes) ? pubRes : (pubRes?.content || []);
+  // 내 리스트 목록 불러오기 (GET /api/users/me/lists)
+  const hasLoadedListsRef = useRef(false);
+  const loadUserLists = async (forceRefresh = false) => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    if (forceRefresh) {
+      invalidateCache("userLists");
+    }
+
+    setIsLoadingLists(true);
+    setListsError(null);
+
+    try {
+      const data = await fetchUserLists();
+      const lists = Array.isArray(data) ? data : (data?.content || []);
+      setUserLists(lists);
+      hasLoadedListsRef.current = true;
+    } catch (err) {
+      console.error("Load User Lists Error:", err);
+      setListsError(err.message || "내 리스트 목록을 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingLists(false);
+    }
+  };
+
+  // 새 리스트 생성 (POST /api/users/me/lists)
+  const handleCreateListSubmit = async (e) => {
+    e.preventDefault();
+    if (!newListName.trim()) {
+      setCreateListError("리스트 이름을 입력해주세요.");
+      return;
+    }
+
+    setIsCreatingList(true);
+    setCreateListError(null);
+
+    try {
+      await createUserList({ name: newListName.trim() });
+      setNewListName("");
+      setShowCreateListModal(false);
+      loadUserLists(true);
+    } catch (err) {
+      console.error("Create User List Error:", err);
+      setCreateListError(err.message || "리스트 생성에 실패했습니다.");
+    } finally {
+      setIsCreatingList(false);
+    }
+  };
+
+  // 리스트 수정 (PUT /api/users/me/lists/{listId})
+  const handleUpdateListSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingList || !editListName.trim()) {
+      setUpdateListError("리스트 이름을 입력해주세요.");
+      return;
+    }
+
+    setIsUpdatingList(true);
+    setUpdateListError(null);
+
+    try {
+      const listId = editingList.listId || editingList.id;
+      await updateUserList(listId, { name: editListName.trim() });
+      setShowEditListModal(false);
+      setEditingList(null);
+      loadUserLists(true);
+      if (selectedListDetail && (selectedListDetail.listId || selectedListDetail.id) === listId) {
+        setSelectedListDetail((prev) => ({ ...prev, name: editListName.trim() }));
+      }
+    } catch (err) {
+      console.error("Update User List Error:", err);
+      setUpdateListError(err.message || "리스트 수정에 실패했습니다.");
+    } finally {
+      setIsUpdatingList(false);
+    }
+  };
+
+  // 리스트 삭제 (DELETE /api/users/me/lists/{listId})
+  const handleDeleteList = async (list) => {
+    const listId = list.listId || list.id;
+    if (!window.confirm(`정말로 [${list.name}] 리스트를 삭제하시겠습니까?`)) return;
+
+    setDeletingListId(listId);
+    try {
+      await deleteUserList(listId);
+      setUserLists((prev) => prev.filter((l) => (l.listId || l.id) !== listId));
+      if (selectedListDetail && (selectedListDetail.listId || selectedListDetail.id) === listId) {
+        setSelectedListDetail(null);
+      }
+    } catch (err) {
+      console.error("Delete User List Error:", err);
+      alert(err.message || "리스트 삭제에 실패했습니다.");
+    } finally {
+      setDeletingListId(null);
+    }
+  };
+
+  // 리스트 공유 링크 생성 및 복사 (POST /api/users/me/lists/{listId}/share)
+  const handleShareList = async (list, e) => {
+    if (e) e.stopPropagation();
+    const listId = list.listId || list.id;
+
+    setSharingListId(listId);
+    try {
+      const res = await shareUserList(listId);
+      const token = res?.shareToken || res?.token || "";
+      const shareUrl = token
+        ? `${window.location.origin}/share/list/${token}`
+        : `${window.location.origin}/list/${listId}`;
+
+      // 클립보드 복사
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+      } catch (clipErr) {
+        console.warn("Clipboard copy fallback:", clipErr);
+      }
+
+      // 카드 아래쪽에 링크 표시
+      setSharedLinks((prev) => ({
+        ...prev,
+        [listId]: {
+          shareToken: token,
+          sharedAt: res?.sharedAt || new Date().toISOString(),
+          shareUrl,
+          copied: true,
+        },
+      }));
+
+      // 하단 토스트 알림
+      setToastMessage("링크가 복사되었습니다!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Share List Error:", err);
+      alert(err.message || "리스트 공유에 실패했습니다.");
+    } finally {
+      setSharingListId(null);
+    }
+  };
+
+
+  // 리스트 상세 보기 및 장소 목록 열기 (GET /api/users/me/lists/{listId})
+  const handleOpenListDetail = async (list) => {
+    const listId = list.listId || list.id;
+    setSelectedListDetail(list);
+    setIsLoadingListDetail(true);
+    setListDetailError(null);
+
+    try {
+      const detail = await fetchUserListDetail(listId);
+      setSelectedListDetail(detail || list);
+    } catch (err) {
+      console.error("Load List Detail Error:", err);
+      setListDetailError(err.message || "리스트 상세 정보를 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingListDetail(false);
+    }
+  };
+
+  // 리스트에서 장소 삭제 (DELETE /api/users/me/lists/{listId}/items/{placeId})
+  const handleRemovePlaceFromList = async (listId, placeId) => {
+    if (!window.confirm("이 장소를 리스트에서 삭제하시겠습니까?")) return;
+
+    setDeletingListItemId(placeId);
+    try {
+      await removePlaceFromUserList(listId, placeId);
+      if (selectedListDetail) {
+        setSelectedListDetail((prev) => ({
+          ...prev,
+          items: (prev.items || []).filter((item) => (item.placeId || item.id) !== placeId),
+          itemCount: Math.max(0, (prev.itemCount || (prev.items || []).length) - 1),
+        }));
+      }
+      loadUserLists(true);
+    } catch (err) {
+      console.error("Remove Place From List Error:", err);
+      alert(err.message || "장소 삭제에 실패했습니다.");
+    } finally {
+      setDeletingListItemId(null);
+    }
+  };
+
+  // 공용 장소 목록 전체 불러오기 (장소 담기 모달용 - explore와 동일한 전수 로딩 & 캐시 메커니즘)
+  const loadPublicPlacesForAddModal = async () => {
+    if (publicPlaces.length >= 100) return;
+    setIsLoadingPublicPlaces(publicPlaces.length === 0);
+    try {
+      // 1단계: 첫 페이지 즉시 표시 (빠른 체감 속도)
+      if (publicPlaces.length === 0) {
+        const page0 = await fetchPublicPlaces(0, 30);
+        const page0List = page0?.content || (Array.isArray(page0) ? page0 : []);
+        if (page0List.length > 0) {
+          setPublicPlaces(page0List);
+        }
+      }
+
+      // 2단계: 전체 페이지 병렬 전수 로드 (최대 15개 페이지 = 450개+ 장소)
+      const fullList = await fetchAllPublicPlaces(15);
+      if (fullList && fullList.length > 0) {
+        setPublicPlaces(fullList);
+      }
+    } catch (err) {
+      console.error("Load Public Places For Modal Error:", err);
+    } finally {
+      setIsLoadingPublicPlaces(false);
+    }
+  };
+
+
+
+  // 리스트에 장소 추가 (POST /api/users/me/lists/{listId}/items)
+  const handleAddPlaceToListSubmit = async (placeId) => {
+    if (!selectedListDetail) return;
+    const listId = selectedListDetail.listId || selectedListDetail.id;
+
+    setAddingPlaceId(placeId);
+    setAddPlaceError(null);
+
+    try {
+      await addPlaceToUserList(listId, placeId);
+      const freshDetail = await fetchUserListDetail(listId);
+      setSelectedListDetail(freshDetail || selectedListDetail);
+      loadUserLists(true);
+      setToastMessage("리스트에 장소가 추가되었습니다!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Add Place To List Error:", err);
+      setAddPlaceError(err.message || "장소 추가에 실패했습니다.");
+    } finally {
+      setAddingPlaceId(null);
+    }
+  };
+
+
+  // 공유 링크 복사 핸들러
+  const handleCopyShareLink = (list) => {
+    const listId = list.listId || list.id;
+    const url = `${window.location.origin}/list/${listId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedShareId(listId);
+      setTimeout(() => setCopiedShareId(null), 2000);
+    });
+  };
+
+  // 내 작성 리뷰 목록 및 장소 매핑 불러오기 (작성 리뷰 탭 진입 시 지연 로딩)
+  const hasLoadedReviewsRef = useRef(false);
+  const loadMyReviews = async (forceRefresh = false) => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    if (forceRefresh) {
+      invalidateCache("myReviews");
+    }
+
+    setIsLoadingReviews(true);
+    setReviewsError(null);
+
+    try {
+      const [reviews, pubRes] = await Promise.allSettled([
+        fetchMyReviews(),
+        fetchPublicPlaces(0, 100),
+      ]);
+
+      if (reviews.status === "fulfilled") {
+        const rList = Array.isArray(reviews.value) ? reviews.value : (reviews.value?.content || []);
+        setMyReviews(rList);
+        hasLoadedReviewsRef.current = true;
+      } else {
+        throw reviews.reason;
+      }
+
+      if (pubRes.status === "fulfilled") {
+        const publics = Array.isArray(pubRes.value) ? pubRes.value : (pubRes.value?.content || []);
         setPlaceMap((prev) => {
           const mapObj = { ...prev };
           publics.forEach((p) => {
@@ -243,23 +579,7 @@ export default function MyPage() {
           });
           return mapObj;
         });
-      })
-      .catch((e) => {
-        console.warn("Public places load for placeMap warn:", e);
-      });
-  };
-
-  // 내 작성 리뷰 목록 불러오기 (도착하는 대로 독립 렌더링)
-  const loadMyReviews = async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
-    setIsLoadingReviews(true);
-    setReviewsError(null);
-
-    try {
-      const reviews = await fetchMyReviews();
-      setMyReviews(Array.isArray(reviews) ? reviews : []);
+      }
     } catch (err) {
       console.error("Load My Reviews Error:", err);
       setReviewsError(err.message || "내 리뷰 목록을 불러오지 못했습니다.");
@@ -267,7 +587,6 @@ export default function MyPage() {
       setIsLoadingReviews(false);
     }
   };
-
 
   // 프로필 아이콘 관련 상태 (1~12)
   const [currentIconId, setCurrentIconId] = useState(1);
@@ -305,6 +624,7 @@ export default function MyPage() {
     }
   };
 
+  // 초기 마운트: 기본 탭(등록 장소)과 프로필만 즉시 로드하여 초고속 렌더링
   useEffect(() => {
     const savedEmail = localStorage.getItem("userEmail");
     if (savedEmail) {
@@ -314,8 +634,26 @@ export default function MyPage() {
     loadUserIcon();
     loadTags();
     loadMyPlaces();
-    loadMyReviews();
+    loadPublicPlacesForAddModal();
   }, []);
+
+
+  // '내 리스트' 탭으로 전환 시 로딩
+  useEffect(() => {
+    if (activeTab === "lists") {
+      loadUserLists();
+    }
+  }, [activeTab]);
+
+
+  // '작성 리뷰' 탭으로 전환 시 지연 로딩
+  useEffect(() => {
+    if (activeTab === "reviews" && !hasLoadedReviewsRef.current) {
+      loadMyReviews();
+    }
+  }, [activeTab]);
+
+
 
   // 장소 수정 모달 열기
   const handleOpenEditModal = (place) => {
@@ -504,31 +842,41 @@ export default function MyPage() {
         </button>
       </div>
 
-      {/* 탭 구분 */}
+      {/* 탭 구분 (3개 탭: 등록 장소 | 내 리스트 | 작성 리뷰) */}
       <div className="flex border-b border-gray-100">
         <button
           onClick={() => setActiveTab("places")}
-          className={`flex-1 py-3 text-sm transition-all text-center ${
+          className={`flex-1 py-3 text-sm transition-all text-center cursor-pointer ${
             activeTab === "places"
               ? "text-[#111] font-bold border-b-2 border-[#111]"
-              : "text-gray-400"
+              : "text-gray-400 hover:text-gray-600"
           }`}
         >
           등록 장소
         </button>
         <button
+          onClick={() => setActiveTab("lists")}
+          className={`flex-1 py-3 text-sm transition-all text-center cursor-pointer ${
+            activeTab === "lists"
+              ? "text-[#111] font-bold border-b-2 border-[#111]"
+              : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          내 리스트
+        </button>
+        <button
           onClick={() => setActiveTab("reviews")}
-          className={`flex-1 py-3 text-sm transition-all text-center ${
+          className={`flex-1 py-3 text-sm transition-all text-center cursor-pointer ${
             activeTab === "reviews"
               ? "text-[#111] font-bold border-b-2 border-[#111]"
-              : "text-gray-400"
+              : "text-gray-400 hover:text-gray-600"
           }`}
         >
           작성 리뷰
         </button>
       </div>
 
-      {/* TAB 1: 장소 */}
+      {/* TAB 1: 등록 장소 */}
       {activeTab === "places" && (
         <div className="flex flex-col flex-1 space-y-4">
           <div className="flex items-center justify-between">
@@ -537,15 +885,17 @@ export default function MyPage() {
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={loadMyPlaces}
+                onClick={() => loadMyPlaces(true)}
                 disabled={isLoadingPlaces}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="새로고침"
               >
                 <RefreshCw size={16} className={isLoadingPlaces ? "animate-spin" : ""} />
               </button>
               <button
                 onClick={() => navigate("/add")}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="장소 추가"
               >
                 <Plus size={18} />
               </button>
@@ -607,14 +957,16 @@ export default function MyPage() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(place)}
-                        className="p-1.5 text-gray-300 hover:text-gray-600"
+                        className="p-1.5 text-gray-300 hover:text-gray-600 cursor-pointer"
+                        title="장소 수정"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeletePlace(place)}
                         disabled={isDeletingThis}
-                        className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-50"
+                        className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-50 cursor-pointer"
+                        title="장소 삭제"
                       >
                         {isDeletingThis ? (
                           <Loader2 size={16} className="animate-spin text-red-500" />
@@ -631,8 +983,210 @@ export default function MyPage() {
         </div>
       )}
 
-      {/* TAB 2: 리뷰 */}
+      {/* TAB 2: 내 리스트 */}
+      {activeTab === "lists" && (
+        <div className="flex flex-col flex-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-sm font-bold text-[#111]">총 {userLists.length}개</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => loadUserLists(true)}
+                disabled={isLoadingLists}
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="새로고침"
+              >
+                <RefreshCw size={16} className={isLoadingLists ? "animate-spin" : ""} />
+              </button>
+              <button
+                onClick={() => {
+                  setNewListName("");
+                  setCreateListError(null);
+                  setShowCreateListModal(true);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="새 리스트 만들기"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          </div>
+
+
+          {listsError && (
+            <div className="text-sm text-red-500 py-2">{listsError}</div>
+          )}
+
+          {isLoadingLists ? (
+            <div className="space-y-3 pb-6 animate-fade-in">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 animate-pulse"
+                >
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl" />
+                    <div className="flex flex-col space-y-2 flex-1">
+                      <div className="w-32 h-4 bg-gray-200 rounded" />
+                      <div className="w-20 h-3 bg-gray-100 rounded" />
+                    </div>
+                  </div>
+                  <div className="w-12 h-6 bg-gray-100 rounded-md" />
+                </div>
+              ))}
+            </div>
+          ) : userLists.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
+              <p className="text-sm">생성된 리스트가 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 pb-6">
+              {userLists.map((list) => {
+                const listId = list.listId || list.id;
+                const isDeleting = deletingListId === listId;
+                const isSharing = sharingListId === listId;
+
+                return (
+
+                  <div
+                    key={listId}
+                    onClick={() => handleOpenListDetail(list)}
+                    className="p-4 bg-white rounded-2xl border border-gray-100 shadow-2xs hover:border-gray-200 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      {/* 폴더 아이콘 & 리스트명 & 장소 개수 */}
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 flex-none group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                          <Folder size={20} />
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <h3 className="text-sm font-bold text-[#111] truncate group-hover:text-indigo-600 transition-colors">
+                            {list.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            장소 {list.itemCount ?? 0}개
+                            {list.createdAt && ` · ${new Date(list.createdAt).toLocaleDateString("ko-KR")}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 액션 버튼 그룹 */}
+                      <div
+                        className="flex items-center space-x-1 flex-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* 공유하기 버튼 (연필 왼쪽) */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleShareList(list, e)}
+                          disabled={sharingListId === listId}
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title="리스트 공유 링크 생성 및 복사"
+                        >
+                          {sharingListId === listId ? (
+                            <Loader2 size={15} className="animate-spin text-indigo-600" />
+                          ) : (
+                            <Share2 size={15} />
+                          )}
+                        </button>
+
+                        {/* 수정 버튼 */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingList(list);
+                            setEditListName(list.name);
+                            setUpdateListError(null);
+                            setShowEditListModal(true);
+                          }}
+                          className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                          title="리스트 이름 수정"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+
+                        {/* 삭제 버튼 */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteList(list)}
+                          disabled={isDeleting}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="리스트 삭제"
+                        >
+                          {isDeleting ? (
+                            <Loader2 size={15} className="animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 size={15} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 공유 링크 확장 패널 (아래쪽에 좌라락 펼쳐짐) */}
+                    {sharedLinks[listId] && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 pt-3 border-t border-gray-100/90 space-y-2 animate-fade-in cursor-default"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-1.5 text-emerald-600">
+                            <CheckCheck size={14} className="flex-none" />
+                            <span className="text-xs font-bold">복사되었습니다!</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSharedLinks((prev) => {
+                                const next = { ...prev };
+                                delete next[listId];
+                                return next;
+                              });
+                            }}
+                            className="p-1 text-gray-300 hover:text-gray-600 rounded-md cursor-pointer"
+                            title="닫기"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+
+                        {/* URL 박스 & 다시 복사 버튼 */}
+                        <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200/80 rounded-xl p-1.5">
+                          <input
+                            type="text"
+                            readOnly
+                            value={sharedLinks[listId].shareUrl}
+                            className="bg-transparent text-[11px] text-gray-700 font-mono flex-1 px-1.5 outline-none select-all truncate"
+                            onClick={(e) => e.target.select()}
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(sharedLinks[listId].shareUrl);
+                              setToastMessage("복사되었습니다!");
+                              setTimeout(() => setToastMessage(null), 3000);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 text-[11px] font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer flex-none"
+                            title="다시 복사"
+                          >
+                            <Copy size={12} />
+                            <span>복사</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: 작성 리뷰 */}
       {activeTab === "reviews" && (
+
         <div className="flex flex-col flex-1 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
@@ -640,12 +1194,14 @@ export default function MyPage() {
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={loadMyReviews}
+                onClick={() => loadMyReviews(true)}
                 disabled={isLoadingReviews}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                title="새로고침"
               >
                 <RefreshCw size={16} className={isLoadingReviews ? "animate-spin" : ""} />
               </button>
+
               <button
                 onClick={() => navigate("/review")}
                 className="text-gray-400 hover:text-gray-600 p-1"
@@ -1174,8 +1730,451 @@ export default function MyPage() {
         </div>
       )}
 
+      {/* 새 리스트 생성 모달 (POST /api/users/me/lists) */}
+      {showCreateListModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <h3 className="text-base font-bold text-[#111]">새 리스트 만들기</h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateListModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs font-semibold p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateListSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700">리스트 이름</label>
+                <input
+                  type="text"
+                  placeholder="예: 홍대 감성 카페 모음"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  maxLength={50}
+                  autoFocus
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
+
+              {createListError && <p className="text-xs text-red-500">{createListError}</p>}
+
+              <div className="flex space-x-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateListModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingList || !newListName.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-[#111] text-white text-xs font-bold flex items-center justify-center disabled:opacity-40 hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  {isCreatingList ? <Loader2 size={14} className="animate-spin" /> : "만들기"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 리스트 이름 수정 모달 (PUT /api/users/me/lists/{listId}) */}
+      {showEditListModal && editingList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <h3 className="text-base font-bold text-[#111]">리스트 이름 수정</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditListModal(false);
+                  setEditingList(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xs font-semibold p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateListSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700">리스트 이름</label>
+                <input
+                  type="text"
+                  value={editListName}
+                  onChange={(e) => setEditListName(e.target.value)}
+                  maxLength={50}
+                  autoFocus
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
+
+              {updateListError && <p className="text-xs text-red-500">{updateListError}</p>}
+
+              <div className="flex space-x-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditListModal(false);
+                    setEditingList(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingList || !editListName.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-[#111] text-white text-xs font-bold flex items-center justify-center disabled:opacity-40 hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  {isUpdatingList ? <Loader2 size={14} className="animate-spin" /> : "수정 완료"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 리스트 상세 & 포함 장소 목록 모달 (GET /api/users/me/lists/{listId}) */}
+      {selectedListDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl space-y-4">
+            {/* 상단 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-none">
+              <div className="flex items-center space-x-2 min-w-0 flex-1">
+                <Folder size={20} className="text-indigo-600 flex-none" />
+                <h3 className="text-base font-bold text-[#111] truncate">
+                  {selectedListDetail.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedListDetail(null)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer flex-none ml-2"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {listDetailError && (
+              <p className="text-xs text-red-500 py-1 flex-none">{listDetailError}</p>
+            )}
+
+
+            {/* 포함된 장소 목록 헤더 & 장소 추가 버튼 */}
+            <div className="flex items-center justify-between flex-none pt-1">
+              <span className="text-xs font-bold text-gray-700">
+                담긴 장소 ({(selectedListDetail.items || []).length}개)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddPlaceError(null);
+                  setAddPlaceTab("private");
+                  setAddPlaceSearch("");
+                  loadPublicPlacesForAddModal();
+                  setShowAddPlaceModal(true);
+                }}
+                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-[#111] text-xs font-bold transition-colors cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>장소 담기</span>
+              </button>
+
+            </div>
+
+            {/* 장소 목록 스크롤 뷰 */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 no-scrollbar min-h-[140px]">
+              {isLoadingListDetail ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 space-y-2">
+                  <Loader2 size={20} className="animate-spin text-[#111]" />
+                  <span className="text-xs">장소 목록 불러오는 중...</span>
+                </div>
+              ) : (selectedListDetail.items || []).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 space-y-2 text-center">
+                  <p className="text-xs">이 리스트에 담긴 장소가 없습니다.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddPlaceError(null);
+                      setShowAddPlaceModal(true);
+                    }}
+                    className="text-xs text-indigo-600 font-bold underline cursor-pointer"
+                  >
+                    지금 장소 추가하기
+                  </button>
+                </div>
+              ) : (
+                (selectedListDetail.items || []).map((item) => {
+                  const placeId = item.placeId || item.id;
+                  const isDeletingItem = deletingListItemId === placeId;
+
+                  return (
+                    <div
+                      key={placeId}
+                      className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 flex items-center justify-between gap-2 hover:bg-gray-100/70 transition-colors"
+                    >
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-xs font-bold text-[#111] truncate">
+                          {item.name || "장소"}
+                        </span>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                          {item.address || "주소 정보 없음"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center space-x-1 flex-none">
+                        {item.kakaoPlaceId && (
+                          <a
+                            href={`https://place.map.kakao.com/${item.kakaoPlaceId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors"
+                            title="카카오맵에서 보기"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemovePlaceFromList(
+                              selectedListDetail.listId || selectedListDetail.id,
+                              placeId
+                            )
+                          }
+                          disabled={isDeletingItem}
+                          className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                          title="리스트에서 제외"
+                        >
+                          {isDeletingItem ? (
+                            <Loader2 size={14} className="animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 하단 닫기 버튼 */}
+            <div className="pt-2 border-t border-gray-100 flex-none">
+              <button
+                type="button"
+                onClick={() => setSelectedListDetail(null)}
+                className="w-full py-2.5 rounded-xl bg-[#111] text-white text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 리스트에 장소 추가 선택 모달 (개인 장소 & 공용 장소 분리) */}
+      {showAddPlaceModal && selectedListDetail && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl space-y-3.5">
+            {/* 모달 상단 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2.5 flex-none">
+              <div>
+                <h3 className="text-base font-bold text-[#111]">리스트에 장소 담기</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  [{selectedListDetail.name}]에 추가할 장소를 선택하세요.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddPlaceModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs font-semibold p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 탭 스위처: [개인 장소] | [공용 장소] */}
+            <div className="flex bg-gray-100 p-1 rounded-xl flex-none">
+              <button
+                type="button"
+                onClick={() => setAddPlaceTab("private")}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  addPlaceTab === "private"
+                    ? "bg-white text-[#111] shadow-2xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                개인 장소 ({myPlaces.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddPlaceTab("public");
+                  loadPublicPlacesForAddModal();
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  addPlaceTab === "public"
+                    ? "bg-white text-[#111] shadow-2xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                공용 장소 ({publicPlaces.length})
+              </button>
+            </div>
+
+            {/* 검색 인풋 */}
+            <div className="relative flex-none">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={addPlaceSearch}
+                onChange={(e) => setAddPlaceSearch(e.target.value)}
+                placeholder={
+                  addPlaceTab === "private"
+                    ? "내 장소 이름/주소 검색..."
+                    : "공용 장소 이름/주소 검색..."
+                }
+                className="w-full bg-gray-50 border border-gray-200/80 rounded-xl pl-8.5 pr-3 py-2 text-xs focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+              />
+            </div>
+
+            {addPlaceError && <p className="text-xs text-red-500 flex-none">{addPlaceError}</p>}
+
+            {/* 장소 목록 뷰 */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar min-h-[160px]">
+              {isLoadingPublicPlaces && addPlaceTab === "public" && publicPlaces.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 space-y-2">
+                  <Loader2 size={20} className="animate-spin text-[#111]" />
+                  <span className="text-xs">공용 장소 목록 불러오는 중...</span>
+                </div>
+              ) : (() => {
+                const currentList = addPlaceTab === "private" ? myPlaces : publicPlaces;
+                const filtered = currentList.filter((p) => {
+                  if (!addPlaceSearch.trim()) return true;
+                  const q = addPlaceSearch.trim().toLowerCase();
+                  return (
+                    (p.name && p.name.toLowerCase().includes(q)) ||
+                    (p.address && p.address.toLowerCase().includes(q))
+                  );
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400 space-y-2 text-center">
+                      <p className="text-xs">
+                        {addPlaceSearch.trim()
+                          ? "검색 결과가 없습니다."
+                          : addPlaceTab === "private"
+                          ? "등록된 개인 장소가 없습니다."
+                          : "등록된 공용 장소가 없습니다."}
+                      </p>
+                      {addPlaceTab === "private" && !addPlaceSearch.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddPlaceModal(false);
+                            setSelectedListDetail(null);
+                            navigate("/add");
+                          }}
+                          className="text-xs text-indigo-600 font-bold underline cursor-pointer"
+                        >
+                          새 장소 등록하러 가기
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return filtered.map((p) => {
+                  const placeId = p.placeId || p.id;
+                  const isAddingThis = addingPlaceId === placeId;
+                  const alreadyInList = (selectedListDetail.items || []).some(
+                    (item) => (item.placeId || item.id) === placeId
+                  );
+
+                  return (
+                    <div
+                      key={placeId}
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                        alreadyInList
+                          ? "bg-gray-50 border-gray-100 opacity-60"
+                          : "bg-white border-gray-200 hover:border-indigo-400"
+                      }`}
+                    >
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs font-bold text-[#111] truncate">{p.name}</span>
+                          {p.placeType && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-gray-100 text-gray-500 flex-none">
+                              {p.placeType}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{p.address}</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAddPlaceToListSubmit(placeId)}
+                        disabled={alreadyInList || isAddingThis}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex-none ${
+                          alreadyInList
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed flex items-center gap-1"
+                            : "bg-[#111] text-white hover:bg-gray-800"
+                        }`}
+                      >
+                        {alreadyInList ? (
+                          <>
+                            <Check size={12} className="text-gray-400" />
+                            <span>담김</span>
+                          </>
+                        ) : isAddingThis ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          "+ 추가"
+                        )}
+                      </button>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            <div className="pt-1 border-t border-gray-100 flex-none">
+              <button
+                type="button"
+                onClick={() => setShowAddPlaceModal(false)}
+                className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* 토스트 알림 (복사되었습니다!) */}
+      {toastMessage && (
+
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in pointer-events-none">
+          <div className="bg-[#111]/90 backdrop-blur-sm text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center space-x-2 text-xs font-bold">
+            <CheckCheck size={16} className="text-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+
 
 

@@ -433,7 +433,10 @@ export default function ExplorePage() {
 
   const moveToMyLocation = useCallback((mapInstance, shouldPan = true) => {
     const targetMap = mapInstance || mapRef.current;
-    if (!targetMap || !window.kakao || !window.kakao.maps) return;
+    if (!targetMap || !window.kakao || !window.kakao.maps) {
+      console.warn("지도 객체가 아직 준비되지 않았습니다.");
+      return;
+    }
 
     if (!navigator.geolocation) {
       alert("이 브라우저에서는 위치 서비스를 지원하지 않습니다.");
@@ -441,8 +444,9 @@ export default function ExplorePage() {
     }
 
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+
+    const onLocationSuccess = (position) => {
+      try {
         const { latitude, longitude } = position.coords;
         const locPosition = new window.kakao.maps.LatLng(latitude, longitude);
 
@@ -452,22 +456,24 @@ export default function ExplorePage() {
 
         const content = document.createElement("div");
         content.style.cssText =
-          "display: flex; flex-direction: column; align-items: center; user-select: none; pointer-events: none;";
+          "display: flex; flex-direction: column; align-items: center; user-select: none; pointer-events: none; z-index: 30;";
         content.innerHTML = `
-          <div style="background-color: #fff; color: #111; font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 9999px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; border: 1px solid #f0f0f0; white-space: nowrap;">
+          <div style="background-color: #111; color: #fff; font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 9999px; box-shadow: 0 2px 8px rgba(0,0,0,0.18); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">
             <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #3b82f6; display: inline-block;"></span>
-            현위치
+            내 위치
           </div>
-          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-            <div style="width: 20px; height: 20px; border-radius: 50%; background-color: #3b82f6; border: 2.5px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;">
+            <div style="width: 18px; height: 18px; border-radius: 50%; background-color: #3b82f6; border: 3px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.25); position: relative; z-index: 2;"></div>
           </div>
         `;
+
 
         const customOverlay = new window.kakao.maps.CustomOverlay({
           position: locPosition,
           content: content,
           xAnchor: 0.5,
           yAnchor: 1.0,
+          zIndex: 35,
         });
 
         customOverlay.setMap(targetMap);
@@ -475,17 +481,46 @@ export default function ExplorePage() {
 
         if (shouldPan) {
           targetMap.panTo(locPosition);
-          targetMap.setLevel(4);
+          targetMap.setLevel(3, { animate: true });
         }
+      } catch (e) {
+        console.error("현위치 마커 렌더링 오류:", e);
+      } finally {
         setIsLocating(false);
-      },
-      (error) => {
-        console.warn("위치 정보를 가져올 수 없습니다:", error);
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      }
+    };
+
+    const onLocationError = (error) => {
+      console.warn("1차 고정밀 위치 조회 실패, 일반 모드로 재시도:", error);
+
+      // highAccuracy 실패 시 저전력/Wi-Fi 기반 일반 모드로 2차 재시도
+      navigator.geolocation.getCurrentPosition(
+        onLocationSuccess,
+        (err2) => {
+          setIsLocating(false);
+          if (err2.code === 1) {
+            alert("브라우저 위치 정보 접근 권한을 허용해주세요.");
+          } else {
+            console.warn("위치 정보를 가져올 수 없습니다:", err2);
+            // 최종 실패 시 기본 중심(홍대 와우산로)으로 부드럽게 재정렬
+            if (shouldPan && targetMap) {
+              const defaultCenter = new window.kakao.maps.LatLng(37.5518, 126.925);
+              targetMap.panTo(defaultCenter);
+            }
+          }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    };
+
+    // 1차 시도: highAccuracy
+    navigator.geolocation.getCurrentPosition(
+      onLocationSuccess,
+      onLocationError,
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
     );
   }, []);
+
 
   // 카테고리/태그 및 검색어 필터링 적용된 목록 계산
   const displayPlaces = useMemo(() => {

@@ -289,135 +289,430 @@ export async function createCustomPlace({ name, address, lat, lng, isShareable }
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await apiFetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({
-      name,
-      address,
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
-      isShareable: Boolean(isShareable),
-    }),
-  });
+    const response = await apiFetch(url, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({
+        name,
+        address,
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        isShareable: Boolean(isShareable),
+      }),
+    });
 
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "장소 등록 실패");
-    throw new Error(errorMsg);
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "장소 등록 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("privatePlaces");
+    invalidateCache("userLists");
+    return await response.json();
   }
 
-  return await response.json();
-}
+  // [내 저장/등록 장소 목록 API] (GET /api/users/me/lists) -> JWT Bearer 토큰 연동 + 30초 메모리 캐시
+  export function fetchUserLists() {
+    return withCache("userLists", 30 * 1000, async () => {
+      const url = getApiUrl("/api/users/me/lists");
 
-// 내 커스텀/개인 장소 목록 조회 API 호출 (GET /api/places/custom) -> JWT Bearer 토큰 연동
-export async function fetchPrivatePlaces() {
-  const url = getApiUrl("/api/places/custom");
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+      }
 
-  const token = localStorage.getItem("accessToken");
-  if (!token) {
-    throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const response = await apiFetch(url, {
+        method: "GET",
+        headers: headers,
+      });
+
+      if (!response.ok) {
+        const errorMsg = await extractErrorMessage(response, "내 목록 조회 실패");
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      if (data && Array.isArray(data.content)) {
+        return data.content;
+      }
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    });
   }
 
-  const headers = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`,
-  };
+  // [내 특정 목록 상세 및 장소 목록 조회 API] (GET /api/users/me/lists/{listId})
+  export async function fetchUserListDetail(listId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}`);
 
-  const response = await apiFetch(url, {
-    method: "GET",
-    headers: headers,
-  });
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+    }
 
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "개인 장소 목록 조회 실패");
-    throw new Error(errorMsg);
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 상세 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
   }
 
-  const data = await response.json();
-  if (data && Array.isArray(data.content)) {
-    return data.content;
-  }
-  if (Array.isArray(data)) {
-    return data;
-  }
-  return [];
-}
+  // [내 목록 생성 API] (POST /api/users/me/lists)
+  export async function createUserList({ name, title, description, isPublic }) {
+    const url = getApiUrl("/api/users/me/lists");
 
-// 내 커스텀/개인 장소 단건 조회 API 호출 (GET /api/places/custom/{placeId})
-export async function fetchPrivatePlaceDetail(placeId) {
-  const url = getApiUrl(`/api/places/custom/${placeId}`);
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
 
-  const token = localStorage.getItem("accessToken");
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+    const response = await apiFetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: (name || title || "").trim(),
+      }),
+    });
 
-  const response = await apiFetch(url, {
-    method: "GET",
-    headers: headers,
-  });
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 생성 실패");
+      throw new Error(errorMsg);
+    }
 
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "개인 장소 조회 실패");
-    throw new Error(errorMsg);
-  }
-
-  return await response.json();
-}
-
-// 내 커스텀/개인 장소 수정 API 호출 (PUT /api/places/custom/{placeId})
-export async function updatePrivatePlace(placeId, { name, address, lat, lng, isShareable }) {
-  const url = getApiUrl(`/api/places/custom/${placeId}`);
-
-  const token = localStorage.getItem("accessToken");
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    invalidateCache("userLists");
+    return await response.json();
   }
 
-  const response = await apiFetch(url, {
-    method: "PUT",
-    headers: headers,
-    body: JSON.stringify({
-      name,
-      address,
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
-      isShareable: Boolean(isShareable),
-    }),
-  });
+  // [내 목록 수정 API] (PUT /api/users/me/lists/{listId})
+  export async function updateUserList(listId, { name, title, description, isPublic }) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}`);
 
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "개인 장소 수정 실패");
-    throw new Error(errorMsg);
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const response = await apiFetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: (name || title || "").trim(),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 수정 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    return await response.json();
   }
 
-  return await response.json();
-}
+  // [내 목록 삭제 API] (DELETE /api/users/me/lists/{listId})
+  export async function deleteUserList(listId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}`);
 
-// 내 커스텀/개인 장소 삭제 API 호출 (DELETE /api/places/custom/{placeId})
-export async function deletePrivatePlace(placeId) {
-  const url = getApiUrl(`/api/places/custom/${placeId}`);
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
 
-  const token = localStorage.getItem("accessToken");
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    const response = await apiFetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 삭제 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    return true;
   }
 
-  const response = await apiFetch(url, {
-    method: "DELETE",
-    headers: headers,
-  });
+  // [내 목록 공유 설정 API] (POST /api/users/me/lists/{listId}/share)
+  export async function shareUserList(listId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}/share`);
 
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "개인 장소 삭제 실패");
-    throw new Error(errorMsg);
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const response = await apiFetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 공유 설정 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    try {
+      return await response.json();
+    } catch {
+      return { success: true };
+    }
   }
 
-  return true;
-}
+  // [내 목록 공유 해제 API] (DELETE /api/users/me/lists/{listId}/share)
+  export async function unshareUserList(listId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}/share`);
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const response = await apiFetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "목록 공유 해제 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    return true;
+  }
+
+  // [내 목록에 장소 추가 API] (POST /api/users/me/lists/{listId}/items)
+  export async function addPlaceToUserList(listId, placeId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}/items`);
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const numericPlaceId = parseInt(placeId, 10) || placeId;
+
+    const response = await apiFetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ placeId: numericPlaceId }),
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "장소 추가 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    try {
+      return await response.json();
+    } catch {
+      return { success: true };
+    }
+  }
+
+  // [내 목록에서 장소 삭제 API] (DELETE /api/users/me/lists/{listId}/items/{placeId})
+  export async function removePlaceFromUserList(listId, placeId) {
+    const url = getApiUrl(`/api/users/me/lists/${listId}/items/${placeId}`);
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const response = await apiFetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "장소 삭제 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("userLists");
+    return true;
+  }
+
+  // [공유된 리스트 조회 API (Public)] (GET /api/shared/lists/{shareToken})
+  export async function fetchSharedList(shareToken) {
+    const url = getApiUrl(`/api/shared/lists/${encodeURIComponent(shareToken)}`);
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "공유된 리스트를 불러오지 못했습니다.");
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
+  }
+
+
+
+  // 내 커스텀/개인 장소 목록 조회 API 호출 (GET /api/places/custom) -> JWT Bearer 토큰 연동 + 30초 메모리 캐시
+  export function fetchPrivatePlaces() {
+    return withCache("privatePlaces", 30 * 1000, async () => {
+      const url = getApiUrl("/api/places/custom");
+
+
+
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("로그인이 필요합니다. 로그인 후 이용해주세요.");
+      }
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      };
+
+      const response = await apiFetch(url, {
+        method: "GET",
+        headers: headers,
+      });
+
+      if (!response.ok) {
+        const errorMsg = await extractErrorMessage(response, "개인 장소 목록 조회 실패");
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      if (data && Array.isArray(data.content)) {
+        return data.content;
+      }
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    });
+  }
+
+  // 내 커스텀/개인 장소 단건 조회 API 호출 (GET /api/places/custom/{placeId})
+  export async function fetchPrivatePlaceDetail(placeId) {
+    const url = getApiUrl(`/api/places/custom/${placeId}`);
+
+    const token = localStorage.getItem("accessToken");
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "개인 장소 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
+  }
+
+  // 내 커스텀/개인 장소 수정 API 호출 (PUT /api/places/custom/{placeId})
+  export async function updatePrivatePlace(placeId, { name, address, lat, lng, isShareable }) {
+    const url = getApiUrl(`/api/places/custom/${placeId}`);
+
+    const token = localStorage.getItem("accessToken");
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await apiFetch(url, {
+      method: "PUT",
+      headers: headers,
+      body: JSON.stringify({
+        name,
+        address,
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        isShareable: Boolean(isShareable),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "개인 장소 수정 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("privatePlaces");
+    invalidateCache("userLists");
+    return await response.json();
+  }
+
+  // 내 커스텀/개인 장소 삭제 API 호출 (DELETE /api/places/custom/{placeId})
+  export async function deletePrivatePlace(placeId) {
+    const url = getApiUrl(`/api/places/custom/${placeId}`);
+
+    const token = localStorage.getItem("accessToken");
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await apiFetch(url, {
+      method: "DELETE",
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "개인 장소 삭제 실패");
+      throw new Error(errorMsg);
+    }
+
+    invalidateCache("privatePlaces");
+    invalidateCache("userLists");
+    return true;
+  }
+
+
 
 // 전체 공용 장소 목록 조회 API 호출 (GET /api/places/public?page=0&size=20) -> JWT Bearer 토큰 연동
 export function fetchPublicPlaces(page = 0, size = 20) {
@@ -475,6 +770,46 @@ export function fetchPublicPlaces(page = 0, size = 20) {
     };
   });
 }
+
+// 전체 공용 장소 일괄 조회 (병렬 페이징 호출 + 5분 캐시)
+export function fetchAllPublicPlaces(maxPages = 20) {
+  return withCache("allPublicPlaces", 5 * 60 * 1000, async () => {
+    // 1단계: 첫 페이지 조회
+    const firstRes = await fetchPublicPlaces(0, 30);
+    const firstItems = firstRes?.content || (Array.isArray(firstRes) ? firstRes : []);
+
+    if (!firstRes?.hasNext || firstItems.length < 30) {
+      return firstItems;
+    }
+
+    // 2단계: 나머지 페이지들 병렬 조회
+    const pagePromises = [];
+    for (let p = 1; p < maxPages; p++) {
+      pagePromises.push(
+        fetchPublicPlaces(p, 30)
+          .then((r) => r?.content || (Array.isArray(r) ? r : []))
+          .catch(() => [])
+      );
+    }
+
+    const otherPages = await Promise.all(pagePromises);
+    const combined = [...firstItems];
+    const seenIds = new Set(firstItems.map((item) => item.placeId || item.id));
+
+    for (const pageList of otherPages) {
+      for (const item of pageList) {
+        const id = item.placeId || item.id;
+        if (id && !seenIds.has(id)) {
+          seenIds.add(id);
+          combined.push(item);
+        }
+      }
+    }
+
+    return combined;
+  });
+}
+
 
 
 // [어드민 API] 공용 장소 신규 등록 (POST /api/admin/places)
@@ -954,32 +1289,34 @@ export async function updateAdminTag(tagId, { name, tagName }) {
   return true;
 }
 
-// [내 프로필 아이콘 API] 현재 유저 아이콘 ID 조회 (GET /api/users/me/icon)
-export async function fetchUserIcon() {
-  const url = getApiUrl("/api/users/me/icon");
+// [내 프로필 아이콘 API] 현재 유저 아이콘 ID 조회 (GET /api/users/me/icon) -> 5분 메모리 캐시
+export function fetchUserIcon() {
+  return withCache("userIcon", 5 * 60 * 1000, async () => {
+    const url = getApiUrl("/api/users/me/icon");
 
-  const token = localStorage.getItem("accessToken");
-  if (!token) {
-    throw new Error("로그인이 필요합니다.");
-  }
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("로그인이 필요합니다.");
+    }
 
-  const response = await apiFetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorMsg = await extractErrorMessage(response, "아이콘 조회 실패");
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    // iconId 또는 icon 숫자 형태 파싱
+    const iconId = typeof data === "number" ? data : (data?.iconId ?? data?.id ?? data?.icon ?? 1);
+    return iconId;
   });
-
-  if (!response.ok) {
-    const errorMsg = await extractErrorMessage(response, "아이콘 조회 실패");
-    throw new Error(errorMsg);
-  }
-
-  const data = await response.json();
-  // iconId 또는 icon 숫자 형태 파싱
-  const iconId = typeof data === "number" ? data : (data?.iconId ?? data?.id ?? data?.icon ?? 1);
-  return iconId;
 }
 
 // [내 프로필 아이콘 API] 유저 아이콘 ID 수정 (PUT /api/users/me/icon)
@@ -1007,9 +1344,12 @@ export async function updateUserIcon(iconId) {
     throw new Error(errorMsg);
   }
 
+  invalidateCache("userIcon");
+
   try {
     return await response.json();
   } catch {
     return { iconId: numericId };
   }
 }
+

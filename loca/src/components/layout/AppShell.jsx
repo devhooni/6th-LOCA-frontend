@@ -16,11 +16,12 @@ export function AppShell({ children, className }) {
     "/admin",
   ];
 
-  // 상단바/하단바 숨김 처리 대상: 온보딩/로그인/회원가입, 로카프렌즈 소개(/friends), 404 Not Found 페이지
-  const isAuthOrSpecialPage = ["/onboarding", "/login", "/signup", "/friends"].includes(location.pathname);
-  const isNotFoundPage = !KNOWN_NAV_ROUTES.includes(location.pathname) && !["/onboarding", "/login", "/signup", "/friends", "/"].includes(location.pathname);
+  const isSharedListPage = location.pathname.startsWith("/share/list");
+  const isAuthOrSpecialPage = ["/onboarding", "/login", "/signup", "/friends"].includes(location.pathname) || isSharedListPage;
+  const isNotFoundPage = !KNOWN_NAV_ROUTES.includes(location.pathname) && !["/onboarding", "/login", "/signup", "/friends", "/"].includes(location.pathname) && !isSharedListPage;
 
   const hideNav = isAuthOrSpecialPage || isNotFoundPage;
+
 
   const isExplore = location.pathname === "/explore";
   const isAdd = location.pathname === "/add";

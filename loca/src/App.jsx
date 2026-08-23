@@ -11,7 +11,9 @@ import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 import ForYouPage from "./pages/ForYouPage";
 import FriendsPage from "./pages/FriendsPage";
+import SharedListPage from "./pages/SharedListPage";
 import NotFoundPage from "./pages/NotFoundPage";
+
 
 // 핵심 로카프렌즈 마스코트 및 PC 배경 이미지 프리로딩 목록
 const CRITICAL_IMAGES = [
@@ -159,7 +161,12 @@ export default function App() {
           }
         />
 
+        {/* 공개 공유 리스트 페이지 (로그인 여부 무관하게 토큰만 있으면 누구나 조회 가능) */}
+        <Route path="/share/list/:shareToken" element={<SharedListPage />} />
+        <Route path="/share/list/:token" element={<SharedListPage />} />
+
         {/* 보호된 라우트 (로그인 상태 필수 - 미인증 시 무조건 /onboarding으로 리다이렉트) */}
+
         <Route
           path="/explore"
           element={
