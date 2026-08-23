@@ -395,7 +395,7 @@ export default function MyPage() {
     }
   };
 
-  // 리스트 공유 링크 생성 및 복사 (POST /api/users/me/lists/{listId}/share)
+  // 리스트 공유 링크 생성 및 멘트와 함께 복사 (POST /api/users/me/lists/{listId}/share)
   const handleShareList = async (list, e) => {
     if (e) e.stopPropagation();
     const listId = list.listId || list.id;
@@ -408,27 +408,34 @@ export default function MyPage() {
         ? `${window.location.origin}/share/list/${token}`
         : `${window.location.origin}/list/${listId}`;
 
-      // 클립보드 복사
+      const listName = list?.name || "LOCA 장소 리스트";
+      const count = list?.itemCount ?? (Array.isArray(list?.items) ? list.items.length : 0);
+      const countText = count > 0 ? ` (${count}곳)` : "";
+      const shareText = `[LOCA] 📍 '${listName}'${countText} 장소 모음을 공유받았어요!\n\n제가 추천하는 특별한 스팟들을 확인해보세요 ✨\n🔗 ${shareUrl}`;
+
+      // 클립보드에 멘트 + 링크 함께 복사
       try {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(shareText);
       } catch (clipErr) {
         console.warn("Clipboard copy fallback:", clipErr);
       }
 
-      // 카드 아래쪽에 링크 표시
+      // 카드 아래쪽에 링크 및 멘트 정보 저장
       setSharedLinks((prev) => ({
         ...prev,
         [listId]: {
           shareToken: token,
           sharedAt: res?.sharedAt || new Date().toISOString(),
           shareUrl,
+          shareText,
           copied: true,
         },
       }));
 
       // 하단 토스트 알림
-      setToastMessage("링크가 복사되었습니다!");
+      setToastMessage("링크 복사 완료!");
       setTimeout(() => setToastMessage(null), 3000);
+
     } catch (err) {
       console.error("Share List Error:", err);
       alert(err.message || "리스트 공유에 실패했습니다.");
@@ -436,6 +443,7 @@ export default function MyPage() {
       setSharingListId(null);
     }
   };
+
 
 
   // 리스트 상세 보기 및 장소 목록 열기 (GET /api/users/me/lists/{listId})
@@ -1132,7 +1140,7 @@ export default function MyPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-1.5 text-emerald-600">
                             <CheckCheck size={14} className="flex-none" />
-                            <span className="text-xs font-bold">복사되었습니다!</span>
+                            <span className="text-xs font-bold">링크 복사 완료!</span>
                           </div>
                           <button
                             type="button"
@@ -1162,8 +1170,9 @@ export default function MyPage() {
                           <button
                             type="button"
                             onClick={async () => {
-                              await navigator.clipboard.writeText(sharedLinks[listId].shareUrl);
-                              setToastMessage("복사되었습니다!");
+                              const textToCopy = sharedLinks[listId].shareText || sharedLinks[listId].shareUrl;
+                              await navigator.clipboard.writeText(textToCopy);
+                              setToastMessage("링크 복사 완료!");
                               setTimeout(() => setToastMessage(null), 3000);
                             }}
                             className="px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 text-[11px] font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer flex-none"
@@ -1172,6 +1181,8 @@ export default function MyPage() {
                             <Copy size={12} />
                             <span>복사</span>
                           </button>
+
+
                         </div>
                       </div>
                     )}

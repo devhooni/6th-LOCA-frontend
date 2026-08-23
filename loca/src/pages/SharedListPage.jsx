@@ -16,16 +16,29 @@ import {
 
 import { fetchSharedList } from "../services/placeService";
 
+const RANDOM_BGS = [
+  "/imgs/bg1.png",
+  "/imgs/bg2.png",
+  "/imgs/bg3.png",
+  "/imgs/bg4.png",
+];
+
 export default function SharedListPage() {
   const { shareToken, token } = useParams();
   const activeToken = shareToken || token;
   const navigate = useNavigate();
+
+  const [randomBg] = useState(() => {
+    const randomIndex = Math.floor(Math.random() * RANDOM_BGS.length);
+    return RANDOM_BGS[randomIndex];
+  });
 
   const [listData, setListData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
 
   useEffect(() => {
     if (!activeToken) {
@@ -62,16 +75,25 @@ export default function SharedListPage() {
   }, [activeToken]);
 
   const handleCopyLink = async () => {
+    const listName = listData?.name || "LOCA 추천 스팟 리스트";
+    const itemCount = Array.isArray(listData?.items) ? listData.items.length : (listData?.itemCount || 0);
+    const countText = itemCount > 0 ? ` (${itemCount}곳)` : "";
+    const shareUrl = window.location.href;
+
+    const shareText = `[LOCA] 📍 '${listName}'${countText} 장소 모음을 공유받았어요!\n\n제가 추천하는 특별한 스팟들을 확인해보세요 ✨\n🔗 ${shareUrl}`;
+
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareText);
       setCopied(true);
-      setToastMessage("공유 링크가 복사되었습니다!");
+      setToastMessage("링크 복사 완료!");
       setTimeout(() => setCopied(false), 2500);
+
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
       console.error("Copy Link Error:", err);
     }
   };
+
 
   const handleGoHome = () => {
     const accessToken = localStorage.getItem("accessToken");
@@ -289,23 +311,35 @@ export default function SharedListPage() {
           )}
         </div>
 
-        {/* 하단 CTA 배너 */}
-        <div className="bg-gradient-to-br from-[#111] to-[#252525] text-white rounded-3xl p-6 shadow-sm space-y-3 text-center">
-          <div className="flex items-center justify-center space-x-1.5 text-yellow-400">
-            <Sparkles size={16} />
-            <span className="text-xs font-bold tracking-wider uppercase">LOCA Spot Curator</span>
+        {/* 하단 CTA 배너 (이미지 가림 없이 상단에 선명하게 노출 + 하단에 텍스트 및 시작하기 버튼) */}
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-2xs overflow-hidden text-center space-y-0">
+          {/* 1. 선명하고 예쁜 일러스트 이미지 (가림 없이 100% 온전하게 노출) */}
+          <div className="w-full h-44 sm:h-52 bg-gray-50 overflow-hidden relative">
+            <img
+              src={randomBg}
+              alt="LOCA Illustration"
+              className="w-full h-full object-cover object-center"
+            />
           </div>
-          <h3 className="text-sm font-bold leading-snug">
-            나만의 특별한 스팟을 기록하고<br />친구들과 공유해보세요
-          </h3>
-          <button
-            onClick={handleGoHome}
-            className="w-full py-3 rounded-xl bg-white text-[#111] text-xs font-bold hover:bg-gray-100 transition-colors shadow-sm cursor-pointer mt-2"
-          >
-            LOCA 시작하기
-          </button>
+
+          {/* 2. 하단 텍스트 및 시작하기 버튼 영역 */}
+          <div className="p-5 sm:p-6 space-y-4">
+            <h3 className="text-sm font-bold text-[#111] leading-relaxed">
+              나만의 특별한 스팟을 기록하고<br />
+              친구들과 함께 공유해보세요
+            </h3>
+
+            <button
+              onClick={handleGoHome}
+              className="w-full py-3.5 px-4 rounded-2xl bg-[#111] hover:bg-gray-800 text-white text-xs font-bold transition-all shadow-xs active:scale-98 cursor-pointer flex items-center justify-center space-x-1.5"
+            >
+              <span>LOCA 시작하기</span>
+            </button>
+          </div>
         </div>
       </main>
+
+
 
       {/* 하단 토스트 알림 */}
       {toastMessage && (

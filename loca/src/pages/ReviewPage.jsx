@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
+
 import {
   MapPin,
   Calendar,
@@ -14,14 +16,19 @@ import {
   Check,
   Search,
   Upload,
+  Globe,
+  Lock,
+  User,
 } from "lucide-react";
 import {
   fetchPublicPlaces,
+  fetchAllPublicPlaces,
   fetchPrivatePlaces,
   fetchTags,
   createReview,
   uploadReviewImage,
 } from "../services/placeService";
+
 
 // 동행인 정적 옵션 목록 (컴포넌트 외부에 선언하여 매 렌더링마다 재생성 방지)
 const COMPANION_OPTIONS = [
@@ -78,10 +85,25 @@ const PlaceCard = memo(function PlaceCard({ place, isSelected, onSelect }) {
 
 export default function ReviewPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
 
-  // 장소 및 태그 목록 state
-  const [places, setPlaces] = useState([]);
+  // 이전 페이지에서 전달된 장소 선택 정보가 있는 경우
+  const preselectedPlace = location.state?.place;
+  const preselectedPlaceId =
+    location.state?.placeId || preselectedPlace?.placeId || preselectedPlace?.id;
+
+  const initialPlaceType =
+    preselectedPlace?.placeType === "PRIVATE" ? "PRIVATE" : "PUBLIC";
+
+  // 장소 및 태그 목록 state (공용 장소 vs 개인 장소 분리)
+  const [publicPlaces, setPublicPlaces] = useState(
+    preselectedPlace && initialPlaceType === "PUBLIC" ? [preselectedPlace] : []
+  );
+  const [privatePlaces, setPrivatePlaces] = useState(
+    preselectedPlace && initialPlaceType === "PRIVATE" ? [preselectedPlace] : []
+  );
+  const [placeTypeFilter, setPlaceTypeFilter] = useState(initialPlaceType); // "PUBLIC" | "PRIVATE"
   const [availableTags, setAvailableTags] = useState([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(true);
 
@@ -91,8 +113,10 @@ export default function ReviewPage() {
   // 한 번에 렌더링할 장소 개수 제한 (50개씩 가상 페이징)
   const [displayLimit, setDisplayLimit] = useState(50);
 
-  // 리뷰 작성 폼 state
-  const [selectedPlaceId, setSelectedPlaceId] = useState("");
+  // 리뷰 작성 폼 state (이전 페이지에서 전달된 장소가 있으면 즉시 선택)
+  const [selectedPlaceId, setSelectedPlaceId] = useState(
+    preselectedPlaceId ? String(preselectedPlaceId) : ""
+  );
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [companion, setCompanion] = useState("ALONE");
@@ -111,12 +135,12 @@ export default function ReviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // 검색어가 바뀌면 표시 개수를 다시 50개로 리셋
+  // 검색어나 탭이 바뀌면 표시 개수를 다시 50개로 리셋
   useEffect(() => {
     setDisplayLimit(50);
-  }, [placeSearchTerm]);
+  }, [placeSearchTerm, placeTypeFilter]);
 
-  // 페이지 마운트 시 장소 및 태그 목록을 단 1회만 호출 (캐시 활용)
+  // 페이지 마운트 시 공용 장소 + 개인 장소 + 태그 목록을 병렬로 호출 (캐시 활용)
   useEffect(() => {
     setIsLoadingPlaces(true);
 
@@ -126,38 +150,94 @@ export default function ReviewPage() {
       })
       .catch((e) => console.warn("Tags load warn:", e));
 
-    fetchPublicPlaces(0, 100)
-      .then((publicRes) => {
-        const list = Array.isArray(publicRes) ? publicRes : (publicRes?.content || []);
-        setPlaces(list);
-        if (list.length > 0) {
-          setSelectedPlaceId((prev) => prev || list[0].placeId || list[0].id);
+    Promise.allSettled([
+      fetchAllPublicPlaces(15),
+      fetchPrivatePlaces(),
+    ])
+      .then(([pubRes, privRes]) => {
+        let pubList =
+          pubRes.status === "fulfilled"
+            ? pubRes.value?.content || (Array.isArray(pubRes.value) ? pubRes.value : [])
+            : [];
+        let privList =
+          privRes.status === "fulfilled"
+            ? privRes.value?.content || (Array.isArray(privRes.value) ? privRes.value : [])
+            : [];
+
+        // 이전 페이지에서 넘어온 장소가 있는 경우 목록에 병합 및 자동 선택
+        if (preselectedPlaceId) {
+          const isPriv =
+            preselectedPlace?.placeType === "PRIVATE" ||
+            privList.some((p) => String(p.placeId || p.id) === String(preselectedPlaceId));
+
+          if (isPriv) {
+            if (preselectedPlace && !privList.some((p) => String(p.placeId || p.id) === String(preselectedPlaceId))) {
+              privList = [preselectedPlace, ...privList];
+            }
+            setPlaceTypeFilter("PRIVATE");
+          } else {
+            if (preselectedPlace && !pubList.some((p) => String(p.placeId || p.id) === String(preselectedPlaceId))) {
+              pubList = [preselectedPlace, ...pubList];
+            }
+            setPlaceTypeFilter("PUBLIC");
+          }
+          setSelectedPlaceId(String(preselectedPlaceId));
+        } else if (pubList.length > 0) {
+          setSelectedPlaceId(String(pubList[0].placeId || pubList[0].id));
+        } else if (privList.length > 0) {
+          setSelectedPlaceId(String(privList[0].placeId || privList[0].id));
+          setPlaceTypeFilter("PRIVATE");
         }
+
+        setPublicPlaces(pubList);
+        setPrivatePlaces(privList);
       })
       .catch((err) => {
-        console.error("Public places load error:", err);
+        console.error("Places load error:", err);
         setErrorMsg("장소 목록을 불러오는데 실패했습니다.");
       })
       .finally(() => {
         setIsLoadingPlaces(false);
       });
-  }, []);
+  }, [preselectedPlaceId, preselectedPlace]);
 
   // 장소 선택 핸들러 (useCallback으로 메모이제이션)
   const handleSelectPlace = useCallback((id) => {
-    setSelectedPlaceId(id);
+    setSelectedPlaceId(String(id));
   }, []);
 
-  // 검색어에 따른 필터링 결과 메모이제이션 (검색어가 바뀔 때만 재계산)
+  // 현재 선택된 탭(PUBLIC vs PRIVATE)에 해당하는 장소 목록
+  const currentPlaces = useMemo(() => {
+    return placeTypeFilter === "PUBLIC" ? publicPlaces : privatePlaces;
+  }, [placeTypeFilter, publicPlaces, privatePlaces]);
+
+  // 검색어에 따른 필터링 결과 메모이제이션 (선택된 장소가 있으면 최상단으로 우선 정렬)
   const filteredPlaces = useMemo(() => {
-    if (!placeSearchTerm.trim()) return places;
-    const term = placeSearchTerm.toLowerCase();
-    return places.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(term) ||
-        p.address?.toLowerCase().includes(term)
-    );
-  }, [places, placeSearchTerm]);
+    let list = currentPlaces;
+    if (placeSearchTerm.trim()) {
+      const term = placeSearchTerm.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(term) ||
+          p.address?.toLowerCase().includes(term)
+      );
+    }
+
+    // 선택된 장소가 목록에 있다면 최상단으로 올려 즉시 눈에 띄게 표시
+    if (selectedPlaceId) {
+      const idx = list.findIndex(
+        (p) => String(p.placeId || p.id) === String(selectedPlaceId)
+      );
+      if (idx > 0) {
+        const selected = list[idx];
+        const rest = list.filter((_, i) => i !== idx);
+        return [selected, ...rest];
+      }
+    }
+
+    return list;
+  }, [currentPlaces, placeSearchTerm, selectedPlaceId]);
+
 
   // 화면에 실제 렌더링할 50개 단위 장소 슬라이스
   const visiblePlaces = useMemo(() => {
@@ -173,6 +253,7 @@ export default function ReviewPage() {
       }
     }
   };
+
 
 
 
@@ -333,7 +414,91 @@ export default function ReviewPage() {
 
           {/* 로드 완료: 즉시 사용 가능한 커스텀 장소 검색 및 선택 박스 컴포넌트 */}
           {!isLoadingPlaces && (
-            <div className="space-y-2.5 animate-fade-in">
+            <div className="space-y-3 animate-fade-in">
+              {/* 장소 타입 선택 아이콘 박스 (공용 장소 vs 개인 장소) */}
+              <div className="grid grid-cols-2 gap-2.5 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaceTypeFilter("PUBLIC");
+                    setPlaceSearchTerm("");
+                  }}
+                  className={`p-3 rounded-2xl border-2 transition-all flex items-center space-x-2.5 text-left cursor-pointer ${
+                    placeTypeFilter === "PUBLIC"
+                      ? "bg-white border-[#111] text-[#111] shadow-2xs"
+                      : "bg-gray-50/70 border-gray-100 hover:border-gray-200 hover:bg-gray-100/70 text-gray-500"
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-none ${
+                      placeTypeFilter === "PUBLIC"
+                        ? "bg-[#111] text-white"
+                        : "bg-gray-200/70 text-gray-500"
+                    }`}
+                  >
+                    <Globe size={16} />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center space-x-1">
+                      <span
+                        className={`text-xs font-bold ${
+                          placeTypeFilter === "PUBLIC" ? "text-[#111]" : "text-gray-700"
+                        }`}
+                      >
+                        공용 장소
+                      </span>
+                      <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-gray-100 text-gray-500">
+                        PUBLIC
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 truncate mt-0.5">
+                      추천 스팟 {publicPlaces.length}개
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaceTypeFilter("PRIVATE");
+                    setPlaceSearchTerm("");
+                  }}
+                  className={`p-3 rounded-2xl border-2 transition-all flex items-center space-x-2.5 text-left cursor-pointer ${
+                    placeTypeFilter === "PRIVATE"
+                      ? "bg-white border-[#111] text-[#111] shadow-2xs"
+                      : "bg-gray-50/70 border-gray-100 hover:border-gray-200 hover:bg-gray-100/70 text-gray-500"
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-none ${
+                      placeTypeFilter === "PRIVATE"
+                        ? "bg-[#111] text-white"
+                        : "bg-gray-200/70 text-gray-500"
+                    }`}
+                  >
+                    <Lock size={16} />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center space-x-1">
+                      <span
+                        className={`text-xs font-bold ${
+                          placeTypeFilter === "PRIVATE" ? "text-[#111]" : "text-gray-700"
+                        }`}
+                      >
+                        개인 장소
+                      </span>
+                      <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-gray-100 text-gray-500">
+                        PRIVATE
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 truncate mt-0.5">
+                      내 등록 장소 {privatePlaces.length}개
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+
               {/* 장소 검색 필터 입력란 (순수 로컬 메모리 필터링, API 요청 0회) */}
               <div className="relative flex items-center">
                 <Search size={16} className="absolute left-3.5 text-gray-400" />
@@ -341,7 +506,11 @@ export default function ReviewPage() {
                   type="text"
                   value={placeSearchTerm}
                   onChange={(e) => setPlaceSearchTerm(e.target.value)}
-                  placeholder="장소명 또는 주소 검색..."
+                  placeholder={
+                    placeTypeFilter === "PUBLIC"
+                      ? "공용 장소명 또는 주소 검색..."
+                      : "개인 장소명 또는 주소 검색..."
+                  }
                   className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:border-gray-400 outline-none transition-colors"
                 />
                 {placeSearchTerm && (
@@ -356,9 +525,11 @@ export default function ReviewPage() {
               </div>
 
               {/* 커스텀 장소 박스 스크롤 목록 (50개씩 가상 페이징 + 메모이제이션으로 0ms 즉각 반응) */}
-              {places.length === 0 ? (
+              {currentPlaces.length === 0 ? (
                 <div className="p-4 text-center rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-400">
-                  등록된 공용 장소가 없습니다.
+                  {placeTypeFilter === "PUBLIC"
+                    ? "등록된 공용 장소가 없습니다."
+                    : "등록된 개인 장소가 없습니다."}
                 </div>
               ) : filteredPlaces.length === 0 ? (
                 <div className="p-4 text-center rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-400">
@@ -390,9 +561,9 @@ export default function ReviewPage() {
                           Math.min(prev + 50, filteredPlaces.length)
                         )
                       }
-                      className="w-full py-2.5 mt-1 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 active:scale-99 transition-all cursor-pointer shadow-2xs"
+                      className="w-full py-2 text-xs font-bold text-gray-500 hover:text-[#111] bg-white border border-gray-100 rounded-xl transition-colors cursor-pointer"
                     >
-                      + 장소 더보기 ({visiblePlaces.length} / {filteredPlaces.length})
+                      더 보기 ({visiblePlaces.length} / {filteredPlaces.length})
                     </button>
                   )}
                 </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Navigation,
   MapPin,
@@ -14,6 +14,11 @@ import {
   Calendar,
   User,
   Globe,
+  Edit2,
+  FolderPlus,
+  Folder,
+  Plus,
+  Check,
 } from "lucide-react";
 import {
   fetchExploreRecommendations,
@@ -24,7 +29,11 @@ import {
   fetchMyReviews,
   fetchPlaceReviews,
   fetchReviewDetail,
+  fetchUserLists,
+  createUserList,
+  addPlaceToUserList,
 } from "../services/placeService";
+
 
 import aloneImg from "/imgs/alone.png";
 import friendsImg from "/imgs/friends.png";
@@ -41,6 +50,7 @@ export const COMPANION_CONFIG = {
 };
 
 export default function ExplorePage() {
+  const navigate = useNavigate();
   const location = useLocation();
   const targetPlaceFromState = location.state?.place;
   const mapContainer = useRef(null);
@@ -79,6 +89,18 @@ export default function ExplorePage() {
   const [placeDetail, setPlaceDetail] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
+  // 내 리스트에 추가 모달 상태
+  const [showAddToListModal, setShowAddToListModal] = useState(false);
+  const [targetPlaceForList, setTargetPlaceForList] = useState(null);
+  const [userLists, setUserLists] = useState([]);
+  const [isLoadingUserLists, setIsLoadingUserLists] = useState(false);
+  const [addingToListId, setAddingToListId] = useState(null);
+  const [addedListIds, setAddedListIds] = useState(new Set());
+  const [showCreateListInput, setShowCreateListInput] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
   // 선택된 장소의 리뷰 목록 상태
   const [placeReviews, setPlaceReviews] = useState([]);
   const [isLoadingPlaceReviews, setIsLoadingPlaceReviews] = useState(false);
@@ -87,6 +109,7 @@ export default function ExplorePage() {
   const [selectedReviewDetail, setSelectedReviewDetail] = useState(null);
   const [isLoadingReviewDetail, setIsLoadingReviewDetail] = useState(false);
   const [reviewDetailError, setReviewDetailError] = useState(null);
+
 
   // Bottom Sheet State & Touch Handling
   const [sheetState, setSheetState] = useState("half");
@@ -678,7 +701,114 @@ export default function ExplorePage() {
     }
   }, []); // Run map init ONLY once on mount to prevent infinite re-renders!
 
+  // 리뷰 작성 페이지로 이동 핸들러 (선택된 장소 전달)
+  const handleWriteReview = (place) => {
+    if (!place) return;
+    const token = localStorage.getItem("accessToken");
+    const placePayload = {
+      id: place.placeId || place.id,
+      placeId: place.placeId || place.id,
+      name: place.name,
+      address: place.address,
+      latitude: Number(place.lat || place.latitude),
+      longitude: Number(place.lng || place.longitude),
+      lat: Number(place.lat || place.latitude),
+      lng: Number(place.lng || place.longitude),
+      placeType: place.placeType || (placeType === "개인" ? "PRIVATE" : "PUBLIC"),
+    };
+
+    if (token) {
+      navigate("/review", { state: { place: placePayload, placeId: placePayload.id } });
+    } else {
+      navigate("/onboarding", { state: { from: { pathname: "/review" }, place: placePayload } });
+    }
+  };
+
+  // 내 리스트 추가 모달 열기 핸들러
+  const handleOpenAddToListModal = async (place) => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      navigate("/onboarding", { state: { from: { pathname: "/explore" } } });
+      return;
+    }
+
+    setTargetPlaceForList(place);
+    setShowAddToListModal(true);
+    setIsLoadingUserLists(true);
+    setShowCreateListInput(false);
+    setNewListName("");
+
+    try {
+      const lists = await fetchUserLists();
+      const listArray = Array.isArray(lists) ? lists : (lists?.content || []);
+      setUserLists(listArray);
+
+      const placeId = place.placeId || place.id;
+      const alreadySet = new Set();
+      listArray.forEach((l) => {
+        if (l.items && l.items.some((item) => (item.placeId || item.id) === placeId)) {
+          alreadySet.add(l.listId || l.id);
+        }
+      });
+      setAddedListIds(alreadySet);
+    } catch (err) {
+      console.error("Fetch User Lists Error:", err);
+    } finally {
+      setIsLoadingUserLists(false);
+    }
+  };
+
+  // 리스트에 장소 추가 실행 핸들러
+  const handleAddPlaceToList = async (listId) => {
+    if (!targetPlaceForList) return;
+    const placeId = targetPlaceForList.placeId || targetPlaceForList.id;
+
+    setAddingToListId(listId);
+    try {
+      await addPlaceToUserList(listId, placeId);
+      setAddedListIds((prev) => new Set([...prev, listId]));
+      setToastMessage("리스트에 장소가 추가되었습니다!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Add place to list error:", err);
+      alert(err.message || "리스트 추가에 실패했습니다.");
+    } finally {
+      setAddingToListId(null);
+    }
+  };
+
+  // 새 리스트 생성 후 바로 장소 추가 핸들러
+  const handleCreateListAndAdd = async (e) => {
+    if (e) e.preventDefault();
+    if (!newListName.trim() || isCreatingList) return;
+
+    setIsCreatingList(true);
+    try {
+      const created = await createUserList(newListName.trim());
+      const createdId = created?.listId || created?.id;
+
+      if (createdId && targetPlaceForList) {
+        const placeId = targetPlaceForList.placeId || targetPlaceForList.id;
+        await addPlaceToUserList(createdId, placeId);
+        setAddedListIds((prev) => new Set([...prev, createdId]));
+      }
+
+      const updatedLists = await fetchUserLists();
+      setUserLists(Array.isArray(updatedLists) ? updatedLists : (updatedLists?.content || []));
+      setNewListName("");
+      setShowCreateListInput(false);
+      setToastMessage("새 리스트를 생성하고 장소를 추가했습니다!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error("Create list error:", err);
+      alert(err.message || "리스트 생성에 실패했습니다.");
+    } finally {
+      setIsCreatingList(false);
+    }
+  };
+
   return (
+
     <div className="relative w-full h-full min-h-0 flex-1 overflow-hidden flex flex-col justify-end">
       {/* Map Element */}
       <div ref={mapContainer} className="w-full h-full absolute inset-0 z-0 bg-gray-100" />
@@ -735,9 +865,9 @@ export default function ExplorePage() {
           <div className="flex flex-col h-full overflow-hidden">
             {selectedPlace ? (
               <div className="flex flex-col h-full overflow-y-auto pr-1 pb-4 text-left space-y-4">
-                <div className="flex items-start justify-between flex-none pb-2 border-b border-gray-100">
-                  <div className="flex flex-col">
-                    <div className="flex items-center space-x-2">
+                <div className="flex items-start justify-between flex-none pb-2.5 border-b border-gray-100">
+                  <div className="flex flex-col min-w-0 flex-1 pr-3">
+                    <div className="flex items-center space-x-2 mb-0.5">
                       <span className="text-xs font-semibold text-gray-400">
                         {placeType} 장소
                       </span>
@@ -746,25 +876,53 @@ export default function ExplorePage() {
                         <span>{placeReviews.length}</span>
                       </span>
                     </div>
-                    <h3 className="text-base font-bold text-[#111] mt-1">
+
+                    <h3 className="text-base font-bold text-[#111] truncate">
                       {selectedPlace.name}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-0.5 flex items-center">
+
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center truncate">
                       <MapPin size={12} className="mr-1 text-gray-400 flex-none" />
-                      {selectedPlace.address}
+                      <span className="truncate">{selectedPlace.address}</span>
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setSelectedPlace(null);
-                      setPlaceDetail(null);
-                      setPlaceReviews([]);
-                    }}
-                    className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 cursor-pointer"
-                  >
-                    <X size={18} />
-                  </button>
+
+                  {/* 우측 상단: [✏️ 리뷰] [📁 리스트] [✕ 닫기] */}
+                  <div className="flex items-center space-x-1 flex-none pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleWriteReview(selectedPlace)}
+                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-[#111] flex items-center justify-center transition-colors cursor-pointer"
+                      title="리뷰 쓰기"
+                      aria-label="리뷰 쓰기"
+                    >
+                      <Edit2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddToListModal(selectedPlace)}
+                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-indigo-600 flex items-center justify-center transition-colors cursor-pointer"
+                      title="내 리스트 추가"
+                      aria-label="내 리스트 추가"
+                    >
+                      <FolderPlus size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlace(null);
+                        setPlaceDetail(null);
+                        setPlaceReviews([]);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 cursor-pointer"
+                      title="닫기"
+                      aria-label="닫기"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
+
 
                 {isLoadingDetail ? (
                   <div className="flex items-center justify-center py-6 text-gray-400 text-sm">
@@ -808,12 +966,14 @@ export default function ExplorePage() {
                         href={`https://place.map.kakao.com/${selectedPlace.kakaoPlaceId}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-center w-full py-2.5 rounded-xl bg-yellow-50 text-yellow-800 text-xs font-bold"
+                        className="flex items-center justify-center w-full py-2.5 rounded-xl bg-yellow-50 hover:bg-yellow-100/80 text-yellow-900 text-xs font-bold transition-colors"
                       >
-                        카카오맵에서 보기
-                        <ExternalLink size={14} className="ml-1.5" />
+                        <span>카카오맵에서 보기</span>
+                        <ExternalLink size={13} className="ml-1.5" />
                       </a>
                     )}
+
+
 
                     {/* 장소 리뷰 섹션 */}
                     <div className="pt-2 border-t border-gray-100 space-y-3">
@@ -1207,6 +1367,154 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {/* 내 리스트에 담기 모달 */}
+      {showAddToListModal && targetPlaceForList && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 w-full max-w-sm max-h-[80vh] flex flex-col shadow-2xl space-y-3.5 text-left">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2.5 flex-none">
+              <div>
+                <h3 className="text-base font-bold text-[#111]">내 리스트에 담기</h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[240px]">
+                  [{targetPlaceForList.name}]을(를) 담을 리스트를 선택하세요.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddToListModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs font-semibold p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 새 리스트 생성 영역 */}
+            {showCreateListInput ? (
+              <form onSubmit={handleCreateListAndAdd} className="flex gap-1.5 flex-none">
+                <input
+                  type="text"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="새 리스트 이름 입력..."
+                  autoFocus
+                  className="flex-1 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs focus:outline-none focus:border-gray-400"
+                />
+                <button
+                  type="submit"
+                  disabled={isCreatingList || !newListName.trim()}
+                  className="px-3 py-2 bg-[#111] text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center gap-1 cursor-pointer flex-none"
+                >
+                  {isCreatingList ? <Loader2 size={12} className="animate-spin" /> : "생성 & 담기"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateListInput(false)}
+                  className="px-2.5 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-200 cursor-pointer flex-none"
+                >
+                  취소
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowCreateListInput(true)}
+                className="w-full py-2 px-3 rounded-xl border border-dashed border-gray-300 text-gray-600 hover:text-[#111] hover:border-gray-400 text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer flex-none"
+              >
+                <Plus size={13} />
+                <span>새 리스트 만들기</span>
+              </button>
+            )}
+
+            {/* 리스트 목록 */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar min-h-[140px]">
+              {isLoadingUserLists ? (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400 space-y-2">
+                  <Loader2 size={20} className="animate-spin text-[#111]" />
+                  <span className="text-xs">내 리스트 불러오는 중...</span>
+                </div>
+              ) : userLists.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400 space-y-2 text-center">
+                  <Folder size={24} className="text-gray-300" />
+                  <p className="text-xs">생성된 내 리스트가 없습니다.</p>
+                </div>
+              ) : (
+                userLists.map((list) => {
+                  const listId = list.listId || list.id;
+                  const isAdded = addedListIds.has(listId);
+                  const isAdding = addingToListId === listId;
+
+                  return (
+                    <div
+                      key={listId}
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                        isAdded
+                          ? "bg-gray-50 border-gray-100 opacity-70"
+                          : "bg-white border-gray-200 hover:border-indigo-400"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-none">
+                          <Folder size={14} />
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-xs font-bold text-[#111] truncate">{list.name}</span>
+                          <span className="text-[11px] text-gray-400">
+                            담긴 장소 {list.itemCount ?? (list.items ? list.items.length : 0)}개
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAddPlaceToList(listId)}
+                        disabled={isAdded || isAdding}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex-none ${
+                          isAdded
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed flex items-center gap-1"
+                            : "bg-[#111] text-white hover:bg-gray-800"
+                        }`}
+                      >
+                        {isAdded ? (
+                          <>
+                            <Check size={12} className="text-gray-400" />
+                            <span>담김</span>
+                          </>
+                        ) : isAdding ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          "+ 담기"
+                        )}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 닫기 버튼 */}
+            <div className="pt-1 border-t border-gray-100 flex-none">
+              <button
+                type="button"
+                onClick={() => setShowAddToListModal(false)}
+                className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-70 animate-fade-in pointer-events-none">
+          <div className="bg-[#111]/90 backdrop-blur-sm text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center space-x-2 text-xs font-bold">
+            <Check size={14} className="text-green-400" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       {!mapLoaded && !errorMsg && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400 text-sm z-30">
           지도를 불러오는 중...
@@ -1220,3 +1528,4 @@ export default function ExplorePage() {
     </div>
   );
 }
+
