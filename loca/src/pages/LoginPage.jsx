@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { loginUser } from "../services/placeService";
-import RobotCaptcha from "../components/common/RobotCaptcha";
 import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
 
 export default function LoginPage() {
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isRobotVerified, setIsRobotVerified] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,10 +28,7 @@ export default function LoginPage() {
       setErrorMsg("비밀번호를 입력해주세요.");
       return;
     }
-    if (!isRobotVerified) {
-      setErrorMsg("공격 방지를 위해 '로봇이 아닙니다' 인증을 완료해주세요.");
-      return;
-    }
+
 
     setIsLoading(true);
     try {
@@ -126,15 +121,11 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* 로봇 방지 인증 (공격 방어) */}
-          <div className="pt-1">
-            <RobotCaptcha onVerify={setIsRobotVerified} />
-          </div>
-
           {/* 에러 메시지 */}
           {errorMsg && (
             <p className="text-xs text-red-500 ml-0.5">{errorMsg}</p>
           )}
+
         </div>
 
         {/* 하단 버튼 */}

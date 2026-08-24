@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 
 import { fetchSharedList, loginUser, signupUser } from "../services/placeService";
-import RobotCaptcha from "../components/common/RobotCaptcha";
 import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
 
 
@@ -52,8 +51,8 @@ export default function SharedListPage() {
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState(null);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
-  const [isRobotVerified, setIsRobotVerified] = useState(false);
   const [pendingPlace, setPendingPlace] = useState(null);
+
 
 
 
@@ -163,13 +162,10 @@ export default function SharedListPage() {
       setAuthError("이메일과 비밀번호를 모두 입력해주세요.");
       return;
     }
-    if (!isRobotVerified) {
-      setAuthError("공격 방지를 위해 '로봇이 아닙니다' 인증을 완료해주세요.");
-      return;
-    }
 
     setIsSubmittingAuth(true);
     setAuthError(null);
+
 
 
     try {
@@ -531,19 +527,12 @@ export default function SharedListPage() {
                 </div>
               </div>
 
-              {/* 로봇 방지 인증 (공격 방어) */}
-              <div className="pt-1">
-                <RobotCaptcha
-                  onVerify={setIsRobotVerified}
-                  resetKey={authTab}
-                />
-              </div>
-
               {authError && (
                 <p className="text-xs text-red-500 text-left pt-1 leading-snug">
                   {authError}
                 </p>
               )}
+
 
               <button
                 type="submit"
