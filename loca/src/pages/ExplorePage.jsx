@@ -515,11 +515,56 @@ export default function ExplorePage() {
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
+  const lastUserPositionRef = useRef(null);
+  const sheetHeightRef = useRef(sheetHeight);
+  useEffect(() => {
+    sheetHeightRef.current = sheetHeight;
+  }, [sheetHeight]);
+
+  // 화면 가시 영역(바텀시트 위쪽 중심)에 정확히 마커가 오도록 중심 보정 및 이동
+  const centerMapOnLocation = useCallback((targetMap, locPosition, shouldPan = true) => {
+    if (!targetMap || !locPosition || !window.kakao || !window.kakao.maps) return;
+
+    try {
+      const proj = targetMap.getProjection();
+      if (proj) {
+        const point = proj.pointFromCoords(locPosition);
+        // 바텀시트가 덮는 높이를 고려하여 가시 영역 정중앙에 마커가 위치하도록 Y축 오프셋 보정
+        const currentSheetH = sheetHeightRef.current || 255;
+        const offsetY = Math.min(Math.max(currentSheetH / 2, 0), 200);
+        const centerPoint = new window.kakao.maps.Point(point.x, point.y + offsetY);
+        const centerCoords = proj.coordsFromPoint(centerPoint);
+
+        if (shouldPan) {
+          targetMap.panTo(centerCoords);
+        } else {
+          targetMap.setCenter(centerCoords);
+        }
+        targetMap.setLevel(3, { animate: true });
+        return;
+      }
+    } catch (e) {
+      console.warn("지도 투영 중심 계산 오류:", e);
+    }
+
+    if (shouldPan) {
+      targetMap.panTo(locPosition);
+    } else {
+      targetMap.setCenter(locPosition);
+    }
+    targetMap.setLevel(3, { animate: true });
+  }, []);
+
   const moveToMyLocation = useCallback((mapInstance, shouldPan = true) => {
     const targetMap = mapInstance || mapRef.current;
     if (!targetMap || !window.kakao || !window.kakao.maps) {
       console.warn("지도 객체가 아직 준비되지 않았습니다.");
       return;
+    }
+
+    // 이전에 저장된 내 위치가 있으면 즉각 중심으로 이동하여 반응 속도 극대화
+    if (lastUserPositionRef.current) {
+      centerMapOnLocation(targetMap, lastUserPositionRef.current, shouldPan);
     }
 
     if (!navigator.geolocation) {
@@ -533,6 +578,7 @@ export default function ExplorePage() {
       try {
         const { latitude, longitude } = position.coords;
         const locPosition = new window.kakao.maps.LatLng(latitude, longitude);
+        lastUserPositionRef.current = locPosition;
 
         if (userMarkerRef.current) {
           userMarkerRef.current.setMap(null);
@@ -551,7 +597,6 @@ export default function ExplorePage() {
           </div>
         `;
 
-
         const customOverlay = new window.kakao.maps.CustomOverlay({
           position: locPosition,
           content: content,
@@ -564,8 +609,7 @@ export default function ExplorePage() {
         userMarkerRef.current = customOverlay;
 
         if (shouldPan) {
-          targetMap.panTo(locPosition);
-          targetMap.setLevel(3, { animate: true });
+          centerMapOnLocation(targetMap, locPosition, true);
         }
       } catch (e) {
         console.error("현위치 마커 렌더링 오류:", e);
@@ -589,7 +633,7 @@ export default function ExplorePage() {
             // 최종 실패 시 기본 중심(홍대 와우산로)으로 부드럽게 재정렬
             if (shouldPan && targetMap) {
               const defaultCenter = new window.kakao.maps.LatLng(37.5518, 126.925);
-              targetMap.panTo(defaultCenter);
+              centerMapOnLocation(targetMap, defaultCenter, true);
             }
           }
         },
@@ -603,7 +647,8 @@ export default function ExplorePage() {
       onLocationError,
       { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
     );
-  }, []);
+  }, [centerMapOnLocation]);
+
 
 
   // 카테고리/태그 및 검색어 필터링 적용된 목록 계산
