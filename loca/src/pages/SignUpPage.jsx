@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { signupUser } from "../services/placeService";
 import RobotCaptcha from "../components/common/RobotCaptcha";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 export default function SignUpPage() {
   const navigate = useNavigate();
@@ -109,14 +111,14 @@ export default function SignUpPage() {
 
       {/* Mascot Illustration & Welcome Banner */}
       <div className="flex flex-col items-center mb-6 text-center">
-        <div className="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center">
-          <img
-            src="/imgs/Signup.png"
-            alt="Welcome to LOCA Friends"
-            className="w-full h-full object-contain filter drop-shadow-sm"
-          />
-        </div>
+        <ImageWithSkeleton
+          src="/imgs/Signup.png"
+          alt="Welcome to LOCA Friends"
+          wrapperClassName="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center"
+          className="w-full h-full object-contain filter drop-shadow-sm"
+        />
         <h1 className="text-xl font-extrabold text-[var(--color-text-primary)] mb-1 tracking-tight">
+
           만나서 반가워요! 🎉
         </h1>
         <p className="text-xs text-gray-500">

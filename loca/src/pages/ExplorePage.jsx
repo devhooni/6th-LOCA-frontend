@@ -43,6 +43,8 @@ import friendsImg from "/imgs/friends.png";
 import coupleImg from "/imgs/couple.png";
 import familyImg from "/imgs/family.png";
 import etcImg from "/imgs/etc.png";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 export const COMPANION_CONFIG = {
   ALONE: { label: "혼자", img: aloneImg },
@@ -1060,14 +1062,14 @@ export default function ExplorePage() {
                   <div className="flex flex-col space-y-4">
                     {/* 이미지 */}
                     {placeDetail?.imageUrl && (
-                      <div className="w-full h-36 rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                        <img
-                          src={placeDetail.imageUrl}
-                          alt={selectedPlace.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                      <ImageWithSkeleton
+                        src={placeDetail.imageUrl}
+                        alt={selectedPlace.name}
+                        wrapperClassName="w-full h-36 rounded-xl overflow-hidden bg-gray-100 border border-gray-100"
+                        className="w-full h-full object-cover"
+                      />
                     )}
+
 
                     {/* 분위기 태그 */}
 
@@ -1179,14 +1181,14 @@ export default function ExplorePage() {
                                 </div>
 
                                 {revPhoto && (
-                                  <div className="w-16 h-16 rounded-md bg-gray-100 border border-gray-200 overflow-hidden flex-none">
-                                    <img
-                                      src={revPhoto}
-                                      alt="리뷰 사진"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
+                                  <ImageWithSkeleton
+                                    src={revPhoto}
+                                    alt="리뷰 사진"
+                                    wrapperClassName="w-16 h-16 rounded-md bg-gray-100 border border-gray-200 overflow-hidden flex-none"
+                                    className="w-full h-full object-cover"
+                                  />
                                 )}
+
                               </div>
                             );
                           })}
@@ -1438,14 +1440,15 @@ export default function ExplorePage() {
                 {Array.isArray(selectedReviewDetail.imageUrls) && selectedReviewDetail.imageUrls.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {selectedReviewDetail.imageUrls.map((img, idx) => (
-                      <div key={idx} className="aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                        <img
-                          src={img}
-                          alt={`리뷰 사진 ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                      <ImageWithSkeleton
+                        key={idx}
+                        src={img}
+                        alt={`리뷰 사진 ${idx + 1}`}
+                        wrapperClassName="aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200"
+                        className="w-full h-full object-cover"
+                      />
                     ))}
+
                   </div>
                 )}
 

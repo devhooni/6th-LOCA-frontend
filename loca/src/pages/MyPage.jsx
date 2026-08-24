@@ -59,11 +59,12 @@ import {
 
 
 import aloneImg from "/imgs/alone.png";
-
 import friendsImg from "/imgs/friends.png";
 import coupleImg from "/imgs/couple.png";
 import familyImg from "/imgs/family.png";
 import etcImg from "/imgs/etc.png";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 // LOCA 서비스 이용방법 4단계 가이드 데이터 (GIF 시연 및 상세 설명 포함)
 const GUIDE_STEPS = [
@@ -1333,18 +1334,30 @@ export default function MyPage() {
 
                         <div className="w-20 h-20 rounded-md bg-gray-50 border border-gray-200 overflow-hidden shadow-2xs flex items-center justify-center">
                           {reviewPhoto ? (
-                            <img
+                            <ImageWithSkeleton
                               src={reviewPhoto}
                               alt={placeName}
+                              fallback={
+                                compConfig ? (
+                                  <img
+                                    src={compConfig.img}
+                                    alt={compConfig.label}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                    <MapPin size={20} />
+                                  </div>
+                                )
+                              }
+                              wrapperClassName="w-full h-full"
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                if (compConfig) e.target.src = compConfig.img;
-                              }}
                             />
                           ) : compConfig ? (
-                            <img
+                            <ImageWithSkeleton
                               src={compConfig.img}
                               alt={compConfig.label}
+                              wrapperClassName="w-full h-full"
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -1360,15 +1373,17 @@ export default function MyPage() {
                     {Array.isArray(review.imageUrls) && review.imageUrls.length > 1 && (
                       <div className="flex gap-1.5 mt-2.5 overflow-x-auto no-scrollbar">
                         {review.imageUrls.map((imgUrl, imgIdx) => (
-                          <img
+                          <ImageWithSkeleton
                             key={imgIdx}
                             src={imgUrl}
                             alt={`사진 ${imgIdx + 1}`}
-                            className="w-10 h-10 rounded-md object-cover border border-gray-200 flex-none"
+                            wrapperClassName="w-10 h-10 rounded-md overflow-hidden border border-gray-200 flex-none"
+                            className="w-full h-full object-cover"
                           />
                         ))}
                       </div>
                     )}
+
 
                     {/* 태그 & 키워드 칩 표시 (분위기 태그 tagIds + 커스텀 키워드 keywords) */}
                     {(() => {

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { loginUser } from "../services/placeService";
 import RobotCaptcha from "../components/common/RobotCaptcha";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -51,11 +52,11 @@ export default function LoginPage() {
 
 
   return (
-    <div className="flex flex-col h-full w-full bg-white px-6 py-6 select-none overflow-y-auto">
-      {/* Back */}
+    <div className="min-h-full flex flex-col justify-between py-6 px-6 max-w-sm mx-auto select-none">
+      {/* 뒤로가기 버튼 */}
       <button
         onClick={() => navigate(-1)}
-        className="self-start text-gray-400 hover:text-gray-600 transition-colors -ml-1 mb-8"
+        className="p-1 -ml-1 text-gray-400 hover:text-gray-600 transition-colors mb-4 cursor-pointer self-start"
         aria-label="뒤로가기"
       >
         <ArrowLeft size={22} />
@@ -63,13 +64,13 @@ export default function LoginPage() {
 
       {/* Mascot Illustration & Welcome Banner */}
       <div className="flex flex-col items-center mb-6 text-center">
-        <div className="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center">
-          <img
-            src="/imgs/Login.png"
-            alt="Welcome Back LOCA Friends"
-            className="w-full h-full object-contain filter drop-shadow-sm"
-          />
-        </div>
+        <ImageWithSkeleton
+          src="/imgs/Login.png"
+          alt="Welcome Back LOCA Friends"
+          wrapperClassName="w-full max-w-[280px] h-36 mb-3 rounded-2xl overflow-hidden flex items-center justify-center"
+          className="w-full h-full object-contain filter drop-shadow-sm"
+        />
+
         <h1 className="text-xl font-extrabold text-[var(--color-text-primary)] mb-1 tracking-tight">
           다시 돌아오셨군요! 👋
         </h1>
@@ -77,6 +78,7 @@ export default function LoginPage() {
           친구들이 기다리고 있었어요. 로그인하고 탐색을 시작해볼까요?
         </p>
       </div>
+
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">

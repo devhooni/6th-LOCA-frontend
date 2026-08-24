@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ChevronLeft, Heart, ChevronRight } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 // 로카프렌즈 4인방 캐릭터 상세 정보 (순서: 로키 -> 오디 -> 코코 -> 아키)
 const CHARACTERS = [
@@ -152,11 +154,13 @@ export default function FriendsPage() {
                   char.bgLight,
                 )}
               />
-              <img
+              <ImageWithSkeleton
                 src={char.image}
                 alt={char.nameKo}
-                className="w-44 h-44 object-contain drop-shadow-xl z-10"
+                wrapperClassName="w-44 h-44 z-10 flex items-center justify-center"
+                className="w-full h-full object-contain drop-shadow-xl"
               />
+
             </div>
 
             {/* 이름 & 역할 타이틀 */}

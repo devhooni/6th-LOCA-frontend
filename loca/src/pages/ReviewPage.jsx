@@ -28,6 +28,8 @@ import {
   createReview,
   uploadReviewImage,
 } from "../services/placeService";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 
 // 동행인 정적 옵션 목록 (컴포넌트 외부에 선언하여 매 렌더링마다 재생성 방지)
@@ -777,14 +779,13 @@ export default function ReviewPage() {
                     key={idx}
                     className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-100"
                   >
-                    <img
+                    <ImageWithSkeleton
                       src={url}
                       alt={`첨부 이미지 ${idx + 1}`}
+                      wrapperClassName="w-full h-full"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = "/imgs/alone.png";
-                      }}
                     />
+
                     <button
                       type="button"
                       onClick={() => handleRemoveImageUrl(idx)}

@@ -19,6 +19,8 @@ import {
 
 import { fetchSharedList, loginUser, signupUser } from "../services/placeService";
 import RobotCaptcha from "../components/common/RobotCaptcha";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 const RANDOM_BGS = [
   "/imgs/bg1.png",
@@ -390,14 +392,14 @@ export default function SharedListPage() {
 
         {/* 하단 CTA 배너 (이미지 가림 없이 상단에 선명하게 노출 + 하단에 텍스트 및 시작하기 버튼) */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-2xs overflow-hidden text-center space-y-0">
-          {/* 1. 선명하고 예쁜 일러스트 이미지 (가림 없이 100% 온전하게 노출) */}
-          <div className="w-full h-44 sm:h-52 bg-gray-50 overflow-hidden relative">
-            <img
-              src={randomBg}
-              alt="LOCA Illustration"
-              className="w-full h-full object-cover object-center"
-            />
-          </div>
+          {/* 1. 선명하고 예쁜 일러스트 이미지 (스켈레톤 로딩 적용) */}
+          <ImageWithSkeleton
+            src={randomBg}
+            alt="LOCA Illustration"
+            wrapperClassName="w-full h-44 sm:h-52 bg-gray-50 overflow-hidden relative"
+            className="w-full h-full object-cover object-center"
+          />
+
 
           {/* 2. 하단 텍스트 및 시작하기 버튼 영역 */}
           <div className="p-5 sm:p-6 space-y-4">

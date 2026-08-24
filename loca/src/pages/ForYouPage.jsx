@@ -6,7 +6,9 @@ import {
   fetchForYouRecommendations,
   fetchPublicPlaceDetail,
 } from "../services/placeService";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
 import forYouIllustration from "/imgs/Foryou.png";
+
 
 export default function ForYouPage() {
   const navigate = useNavigate();
@@ -145,43 +147,42 @@ export default function ForYouPage() {
         /* 장소 로딩 스켈레톤 상태 */
         <div className="space-y-4 animate-fade-in">
           <div className="relative pt-2">
-            <div className="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
-              <img
-                src={forYouIllustration}
-                alt="LOCA Friends recommendations"
-                className="w-full h-full object-contain filter drop-shadow-sm"
-              />
-            </div>
-            <div className="relative -mt-6 z-10 space-y-3">
-              <div className="w-full p-5 bg-white rounded-2xl shadow-md border border-gray-100/80 animate-pulse space-y-3.5">
-                <div className="w-24 h-5 bg-amber-100/80 rounded-md" />
-                <div className="space-y-2">
-                  <div className="w-44 h-5.5 bg-gray-200 rounded-md" />
-                  <div className="w-60 h-4 bg-gray-100 rounded-md" />
-                </div>
-                <div className="pt-3.5 border-t border-gray-100 space-y-2">
-                  <div className="w-20 h-3 bg-gray-100 rounded" />
-                  <div className="flex gap-1.5">
-                    <div className="h-6 w-16 bg-gray-100 rounded-lg" />
-                    <div className="h-6 w-20 bg-gray-100 rounded-lg" />
-                    <div className="h-6 w-14 bg-gray-100 rounded-lg" />
-                  </div>
+            <ImageWithSkeleton
+              src={forYouIllustration}
+              alt="LOCA Friends recommendations"
+              wrapperClassName="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center"
+              className="w-full h-full object-contain filter drop-shadow-sm"
+            />
+          </div>
+          <div className="relative -mt-6 z-10 space-y-3">
+            <div className="w-full p-5 bg-white rounded-2xl shadow-md border border-gray-100/80 animate-pulse space-y-3.5">
+              <div className="w-24 h-5 bg-amber-100/80 rounded-md" />
+              <div className="space-y-2">
+                <div className="w-44 h-5.5 bg-gray-200 rounded-md" />
+                <div className="w-60 h-4 bg-gray-100 rounded-md" />
+              </div>
+              <div className="pt-3.5 border-t border-gray-100 space-y-2">
+                <div className="w-20 h-3 bg-gray-100 rounded" />
+                <div className="flex gap-1.5">
+                  <div className="h-6 w-16 bg-gray-100 rounded-lg" />
+                  <div className="h-6 w-20 bg-gray-100 rounded-lg" />
+                  <div className="h-6 w-14 bg-gray-100 rounded-lg" />
                 </div>
               </div>
             </div>
           </div>
         </div>
       ) : !isUnlocked ? (
-        /* LOCKED STATE */
-        <div className="flex flex-col bg-white rounded-2xl border border-gray-100 p-6 text-center space-y-5 my-auto shadow-xs">
-          {/* 로카프렌즈 분석 일러스트 */}
-          <div className="w-full max-w-[280px] h-36 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
-            <img
-              src={forYouIllustration}
-              alt="LOCA Friends analyzing recommendations"
-              className="w-full h-full object-contain filter drop-shadow-xs"
-            />
-          </div>
+      /* LOCKED STATE */
+      <div className="flex flex-col bg-white rounded-2xl border border-gray-100 p-6 text-center space-y-5 my-auto shadow-xs">
+        {/* 로카프렌즈 분석 일러스트 */}
+        <ImageWithSkeleton
+          src={forYouIllustration}
+          alt="LOCA Friends analyzing recommendations"
+          wrapperClassName="w-full max-w-[280px] h-36 mx-auto rounded-2xl overflow-hidden flex items-center justify-center"
+          className="w-full h-full object-contain filter drop-shadow-xs"
+        />
+
 
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold mb-1">
@@ -225,13 +226,13 @@ export default function ForYouPage() {
           {/* 상단 Hero 배너 + 장소 카드 오버랩 컨테이너 */}
           <div className="relative pt-2">
             {/* 1. 배경 상단에 자연스럽게 펼쳐지는 로카프렌즈 4인방 일러스트 */}
-            <div className="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center">
-              <img
-                src={forYouIllustration}
-                alt="LOCA Friends recommendations"
-                className="w-full h-full object-contain filter drop-shadow-sm"
-              />
-            </div>
+            <ImageWithSkeleton
+              src={forYouIllustration}
+              alt="LOCA Friends recommendations"
+              wrapperClassName="w-full max-w-[340px] h-40 mx-auto rounded-2xl overflow-hidden flex items-center justify-center"
+              className="w-full h-full object-contain filter drop-shadow-sm"
+            />
+
 
             {/* 2. 일러스트 하단과 겹치면서 올라오는 추천 장소 카드 (Negative Top Margin) */}
             <div className="relative -mt-6 z-10">

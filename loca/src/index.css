@@ -321,6 +321,28 @@ html, body, #root {
   animation: my-user-gray-fill 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 스켈레톤 로딩 쉬머(Shimmer) 애니메이션 */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(243, 244, 246, 1) 0%,
+    rgba(229, 231, 235, 0.85) 50%,
+    rgba(243, 244, 246, 1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite ease-in-out;
+}
+
+
 
 
 

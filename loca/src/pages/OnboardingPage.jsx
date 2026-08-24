@@ -15,6 +15,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import peekFriendsIllustration from "/imgs/start.png";
+import ImageWithSkeleton from "../components/common/ImageWithSkeleton";
+
 
 // LOCA 서비스 이용방법 4단계 가이드 데이터 (GIF 시연 및 상세 설명 포함)
 const GUIDE_STEPS = [
@@ -346,12 +348,14 @@ export default function OnboardingPage() {
           <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-white p-6 pt-6 shadow-2xl space-y-5 animate-slide-up overflow-visible">
             {/* 바텀시트 상단 경계선에 깔끔하게 빼꼼 튀어나온 로카프렌즈 4인방 (텍스트/말풍선 없음) */}
             <div className="absolute -top-[74px] -left-6 flex justify-start pointer-events-none z-20">
-              <img
+              <ImageWithSkeleton
                 src={peekFriendsIllustration}
                 alt="LOCA Friends Peeking"
-                className="w-[300px] h-[104px] object-contain drop-shadow-md"
+                wrapperClassName="w-[300px] h-[104px] flex items-center justify-start"
+                className="w-full h-full object-contain drop-shadow-md"
               />
             </div>
+
 
             {/* Header & Close */}
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
